@@ -173,6 +173,20 @@ make
 
 Требуется devkitPro с пакетами `switch-dev` и `devkitA64` (контейнер `devkitpro/devkita64` уже содержит всё нужное). В CI всё это уже настроено через `.github/workflows/build.yml`.
 
+## Где лежат конфиги, темы, звуки
+
+FPSLocker трогает три разных места на SD-карте — все они уже завязаны на экосистему Ряженка:
+
+| Что | Где | Кто пишет / читает |
+|-----|-----|-------------------|
+| Глобальные настройки Tesla-окружения, темы, звуки (sound pack), обои (wallpaper.png) | `/config/ryazhahand/` | `libryazhahand` (через `BASE_CONFIG_PATH = /config/ryazhahand/`). НЕ `/config/ultrahand/`. |
+| Per-overlay переопределения FPSLocker — `theme.ini`, `wallpaper.rgba`, `lang/<lang>.json` | `/config/fpslocker/` | задаётся в Makefile через `UI_OVERRIDE_PATH := /config/fpslocker/`, читается libryazhahand из `tesla.cpp`. |
+| Патчи и настройки самого FPSLocker (`*.dat`, патчи, конфиги внешних дисплеев) | `/SaltySD/plugins/FPSLocker/` | сам FPSLocker через SaltyNX. |
+
+То есть звуки и темы общие со всеми ryazhahand-оверлеями (читаются из `/config/ryazhahand/sounds`, `/config/ryazhahand/.loaded_sounds/*.wav`, `/config/ryazhahand/themes/*.ini`), а FPSLocker может поверх них поставить свой `theme.ini` в `/config/fpslocker/theme.ini`. Если этих файлов нет — оверлей возьмёт глобальную тему из `/config/ryazhahand/`.
+
+Все пути к `/config/ultrahand/...` в нашем форке уже удалены — их обслуживает libryazhahand, и она смотрит только в `/config/ryazhahand/`.
+
 ## Структура репозитория
 
 ```
