@@ -146,3 +146,49 @@ jobs:
             dist/BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 30
+
+  auto-tag-on-version-change:
+    name: Auto-tag if APP_VERSION changed (triggers release.yml)
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compare APP_VERSION with latest release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APP_VERSION=$(grep -E '^APP_VERSION\s*:=' Makefile | sed -E 's/.*:=\s*//;s/\s*$//')
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::Could not extract APP_VERSION from Makefile."
+            exit 1
+          fi
+          TAG="v${APP_VERSION}"
+          LATEST=$(gh release list --repo "${{ github.repository }}" --limit 5 --json tagName --jq '.[] | .tagName' | grep -E '^v[0-9]' | head -1 || echo "")
+          echo "APP_VERSION=$APP_VERSION  ->  TAG=$TAG"
+          echo "Latest release tag: $LATEST"
+          if [ "$TAG" = "$LATEST" ]; then
+            echo "Already released; nothing to do."
+            exit 0
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Tag $TAG already has a release; nothing to do."
+            exit 0
+          fi
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag exists but no release; pushing to (re-)trigger release.yml."
+            git push origin "$TAG" || true
+          else
+            git config user.name  'ryazhahand-release-bot'
+            git config user.email 'ryazhahand-release-bot@users.noreply.github.com'
+            git tag -a "$TAG" -m "Auto-tag on APP_VERSION change: $TAG"
+            git push origin "$TAG"
+            echo "Pushed $TAG — release.yml will publish."
+          fi
+
