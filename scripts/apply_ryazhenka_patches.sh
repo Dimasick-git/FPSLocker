@@ -148,4 +148,33 @@ find . -type f \
     ' "$f" || true
   done
 
+# ---------------------------------------------------------------------------
+# 6) Silence asmjit's unsupported-OS pragma message (Switch / libnx triggers it).
+#    Idempotent: if the message lines no longer exist, this is a no-op.
+# ---------------------------------------------------------------------------
+ASMJIT_CPUINFO="source/asmjit/core/cpuinfo.cpp"
+if [ -f "$ASMJIT_CPUINFO" ] && grep -q 'Disabling runtime CPU detection - unsupported OS/CPU combination' "$ASMJIT_CPUINFO"; then
+  echo "[ryazhenka] silencing asmjit unsupported-OS #pragma message"
+  python3 - <<'PY'
+import re, pathlib
+p = pathlib.Path("source/asmjit/core/cpuinfo.cpp")
+src = p.read_text()
+pat = re.compile(
+    r'#if ASMJIT_ARCH_ARM == 32\n'
+    r'  #pragma message\("\[asmjit\] Disabling runtime CPU detection[^"]*"\)\n'
+    r'#else\n'
+    r'  #pragma message\("\[asmjit\] Disabling runtime CPU detection[^"]*"\)\n'
+    r'#endif\n'
+)
+replacement = (
+    '// [Ryazhenka] Silenced asmjit\'s #pragma message about disabled runtime CPU\n'
+    '// detection — on Nintendo Switch (libnx, "unknown" OS) we never need runtime\n'
+    '// detection, so the fallback path using compiler flags is the intended one.\n'
+)
+new = pat.sub(replacement, src, count=1)
+if new != src:
+    p.write_text(new)
+PY
+fi
+
 echo "[ryazhenka] done."
