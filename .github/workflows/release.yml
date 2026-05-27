@@ -83,7 +83,19 @@ jobs:
       - name: Build .ovl
         shell: bash
         run: |
-          source /opt/devkitpro/devkitvars.sh
+          if [ -z "${DEVKITPRO:-}" ]; then
+            for f in /opt/devkitpro/devkitvars.sh /etc/profile.d/devkit-env.sh; do
+              if [ -f "$f" ]; then . "$f"; break; fi
+            done
+          fi
+          if [ -z "${DEVKITPRO:-}" ]; then export DEVKITPRO=/opt/devkitpro; fi
+          if [ -z "${DEVKITA64:-}" ] && [ -d "$DEVKITPRO/devkitA64" ]; then
+            export DEVKITA64="$DEVKITPRO/devkitA64"
+          fi
+          export PATH="${DEVKITPRO:-/opt/devkitpro}/tools/bin:${DEVKITA64:-/opt/devkitpro/devkitA64}/bin:$PATH"
+          echo "DEVKITPRO=$DEVKITPRO"
+          echo "DEVKITA64=$DEVKITA64"
+          which aarch64-none-elf-gcc || true
           make -j"$(nproc)"
 
       - name: Verify Ryazhahand signature

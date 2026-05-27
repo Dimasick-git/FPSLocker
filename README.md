@@ -1,4 +1,4 @@
-# FPSLocker (Ryazhenka / libryazhahand build)
+# FPSLocker — Ryazhenka / libryazhahand build
 
 > **Ryazhenka ecosystem fork of [masagrator/FPSLocker](https://github.com/masagrator/FPSLocker), based on the [ppkantorski/FPSLocker](https://github.com/ppkantorski/FPSLocker) rework, ported to [`libryazhahand`](https://github.com/dimasick-git/libryazhahand).**
 
@@ -9,39 +9,50 @@
 FPSLocker is a Tesla / Ryazhahand overlay that, in combination with SaltyNX, lets you set a custom display refresh rate and FPS in Nintendo Switch retail games.
 
 This fork:
-- Builds against `libryazhahand` instead of `libultrahand`.
-- Signs the resulting `.ovl` with the `RYZH` marker (instead of `ULTR`).
-- Ships GitHub Actions for automatic build of every commit and automatic GitHub Releases on tags.
-- Has a one-click upstream-sync workflow that pulls changes from `masagrator/FPSLocker` and re-applies all Ryazhenka customisations automatically, so the fork never breaks.
-- Currently versioned **3.3.3**.
+- Builds against `libryazhahand` instead of `libultrahand` / `libtesla`.
+- Signs the produced `.ovl` with the `RYZH` marker (instead of `ULTR`).
+- Ships GitHub Actions for automatic build of every commit and PR, and automatic GitHub Releases when a `v*` tag is pushed.
+- Has a one-click upstream-sync workflow that pulls changes from `masagrator/FPSLocker` and automatically re-applies all Ryazhenka customisations, so the fork never breaks on sync.
+- Lives in the Ryazhenka ecosystem alongside `libryazhahand`, `Ryazhahand-Overlay`, and the rest of our Switch homebrew tooling.
 
-Full documentation below is in Russian.
+Full project documentation below is in Russian.
 
 ---
 
 ## Русский (полная документация)
 
-Оверлей, который вместе с SaltyNX позволяет задавать собственную частоту обновления дисплея и FPS в обычных играх Nintendo Switch.
+**FPSLocker** — это оверлей для Nintendo Switch, который вместе с SaltyNX позволяет задавать собственную частоту обновления дисплея и FPS в обычных играх. Этот репозиторий — порт под экосистему **Ряженка** (`libryazhahand`).
 
 > [!NOTE]
-> Инструмент определяет графический API игры и манипулирует FPS. В отдельных случаях требуются патчи под конкретную версию игры для разблокировки более 30 FPS. В оверлее встроена возможность скачивать конфиги, по которым потом делаются патчи. Репозиторий с конфигами — [HERE](https://github.com/masagrator/FPSLocker-Warehouse).<br>
+> Инструмент определяет графический API игры и манипулирует FPS. В отдельных случаях требуются патчи под конкретную версию игры для разблокировки более 30 FPS. В оверлее встроена возможность скачивать конфиги, по которым делаются патчи. Репозиторий с конфигами — [`masagrator/FPSLocker-Warehouse`](https://github.com/masagrator/FPSLocker-Warehouse).<br>
 > Максимальный поддерживаемый размер YAML — 32 КБ (может быть увеличен в будущих обновлениях).
 
 > [!WARNING]
 > НЕ РЕКОМЕНДУЕТСЯ ИСПОЛЬЗОВАТЬ 60 FPS-ЧИТЫ/МОДЫ ОДНОВРЕМЕННО С ЭТИМ ИНСТРУМЕНТОМ. ИЛИ ЧИТ, ИЛИ FPSLOCKER — НЕ ОБА СРАЗУ! ЭТО ПРИВОДИТ К КОНФЛИКТАМ И КРАШАМ.
 
-# Что нового в этой сборке (Ryazhenka)
+---
 
-- Сборка под библиотеку **`libryazhahand`** (форк `libultrahand`), `ultrahand.mk` → `ryazhahand.mk`.
-- Подпись результирующего `.ovl` — `RYZH` вместо `ULTR`.
-- GitHub Actions:
-  - `build.yml` — автосборка `.ovl` на каждый коммит и каждый Pull Request, с публикацией артефакта.
-  - `release.yml` — автоматический GitHub Release при пуше тега вида `v*` (например `v3.3.3`).
-  - `sync-upstream.yml` — ручной/еженедельный sync с `masagrator/FPSLocker`, который **сохраняет все ряженочные правки** и автоматически переименовывает `ultrahand` → `ryazhahand` в новых файлах.
-- Все ссылки `libultrahand` / `Ultrahand` в коде и Makefile заменены на `libryazhahand` / `Ryazhahand` там, где это касается экосистемы.
-- Версия — **3.3.3**.
+## Чем эта сборка отличается от оригинала
 
-# Требования
+- Сборка под библиотеку **`libryazhahand`** (форк `libultrahand`). В Makefile подключается `libs/libryazhahand/ryazhahand.mk` (с фолбэком на старое имя `ultrahand.mk`).
+- Подпись результирующего `.ovl` — **`RYZH`** вместо `ULTR`. Это нужно, чтобы наш форк Ryazhahand-Overlay понимал, что оверлей собран под нашу экосистему.
+- Все упоминания `libultrahand` / `Ultrahand-Overlay` в Makefile и документации заменены на `libryazhahand` / `Ryazhahand-Overlay`.
+- Подключён `dimasick-git/libryazhahand` как git submodule в `libs/libryazhahand`.
+- Версия проекта берётся из единственного источника — файла `.ryazhenka-version`. Скрипт sync-пайплайна сам прописывает её в Makefile.
+
+## GitHub Actions
+
+Под `.github/workflows/` лежат три воркфлоу:
+
+| Файл | Триггеры | Что делает |
+|------|----------|------------|
+| `build.yml` | каждый коммит, каждый PR, ручной запуск | Собирает `.ovl` в контейнере `devkitpro/devkita64`, дописывает к версии `+ryazh.<shortsha>`, проверяет подпись `RYZH`, заливает артефакт `FPSLocker.ovl` + `BUILD_INFO.txt` (имя/email автора коммита, тема, дата, SHA, ссылка на запуск). |
+| `release.yml` | пуш тега `v*` или ручной запуск с указанием тега | Собирает релизный `.ovl`, синхронизирует APP_VERSION с тегом, генерирует release notes и публикует GitHub Release с `.ovl`, `BUILD_INFO.txt` и `.zip`. |
+| `sync-upstream.yml` | по расписанию (Пн 04:17 UTC) или ручной запуск | Тянет изменения из `masagrator/FPSLocker`, делает merge с `-X theirs`, откатывает защищённые файлы, прогоняет ряженочные патчи и открывает PR. |
+
+Подробности — `docs/SYNC.md`.
+
+## Требования
 
 - [Atmosphere CFW](https://github.com/Atmosphere-NX/Atmosphere/releases)
 - [Форк SaltyNX от masagrator, версия 1.7.4+](https://github.com/masagrator/SaltyNX/releases)
@@ -49,20 +60,26 @@ Full documentation below is in Russian.
 - Тулсет для разгона (и не ждите, что в доке игры пойдут с залоченными 60 FPS без серьёзных частот — 1963/998/2133 в большинстве случаев недостаточно)
 - [sys-dock](https://github.com/masagrator/sys-dock/releases) — прочитайте его [README](https://github.com/masagrator/sys-dock/blob/main/README.md), чтобы разблокировать 120 Гц в OLED в доке и починить артефактные горизонтальные полосы.
 
-Как всё настроить: [гайд от masagrator](https://gist.github.com/masagrator/65fcbd5ad09243399268d145aaab899b).
+Как всё настроить целиком: [гайд от masagrator](https://gist.github.com/masagrator/65fcbd5ad09243399268d145aaab899b).
 
-# Использование
+## Установка
 
-Поддерживаемые языки: английский, немецкий, французский, русский, бразильский португальский, китайский упрощённый, китайский традиционный.
+1. Скачайте `FPSLocker.ovl` из последнего [GitHub Release](../../releases) или из артефактов CI-сборки.
+2. Положите файл в `/switch/.overlays/FPSLocker.ovl` на SD-карте.
+3. Откройте оверлей через Ryazhahand-Overlay / Tesla menu.
+
+## Использование
+
+Поддерживаемые языки интерфейса: английский, немецкий, французский, русский, бразильский португальский, китайский упрощённый, китайский традиционный.
 
 Оверлей работает в двух режимах:
 
-> Когда игра запущена
+### Когда игра запущена
 
 Если игра поддерживается SaltyNX и всё установлено правильно — увидите меню, в первой строке которого написано `NX-FPS plugin is running`.
 
-**tl;dr**<br>
-Лучший подход для запуска 30 FPS игр на более высокой частоте:
+**tl;dr.** Лучший подход для запуска 30 FPS игр на более высокой частоте:
+
 1. Запустите игру, подключите Switch к интернету, в FPSLocker перейдите в `Advanced Settings`, нажмите `Check/download config file`. Если ваша игра и версия совместимы с репозиторием FPSLocker Warehouse, меню обновится и появится пункт `Convert config to patch`. Нажмите на него, перезапустите игру, теперь меняйте FPS Target в FPSLocker.
 2. Зайдите в Advanced Settings — если видите «Set/Active/Available buffers: 2/2/3», нажмите `Set buffering`, выберите `Triple (force)`.
 
@@ -107,7 +124,7 @@ Full documentation below is in Russian.
       - `Use lowest refresh rate for unmatched FPS targets` — например, для 60 Гц дисплея и 35 FPS Target подходящей частоты в `Allowed refresh rates` нет. С этой опцией возьмётся минимальная включённая. Без неё — 60 Гц. По умолчанию выключено.
       - `60 HZ in HOME Menu` — если Docked Display Sync включён, при выходе в HOME Menu SaltyNX всегда поставит 60 Гц на этом дисплее.
 
-> Когда игра не запущена
+### Когда игра не запущена
 
 Доступно два подменю:
 - `Games list`<br>
@@ -118,7 +135,7 @@ Full documentation below is in Russian.
 - `Display settings` — описано выше.
 - `Force English language` — если предпочитаете английский, эта опция форсит его в оверлее. Реализовано через самомодификацию исполняемого файла, поэтому после обновления оверлея до новой версии флаг сбрасывается.
 
-# Информация о смене частоты в портативном режиме
+## Информация о смене частоты в портативном режиме
 
 OLED-дисплеи Switch требуют гамма-коррекции после смены частоты. Регистры OLED-панели правятся так, чтобы гамма-кривая была как можно ближе к оригинальной, но шаг регистров большой, поэтому небольшая разница в цветах возможна (хуже всего — 60% яркости при 45 Гц).
 
@@ -136,7 +153,7 @@ LCD можно разогнать до 70 Гц без явных проблем,
 
 Я не несу ответственности за повреждения, вызванные сменой частоты. Каждый раз при входе в `Display settings` вас встретит предупреждение — пользователь несёт всю ответственность сам. Нужно нажать `Accept` для продолжения.
 
-# Информация о смене частоты в доке
+## Информация о смене частоты в доке
 
 Потолок — 120 Гц, как максимум для оригинального дока и не-OLED-моделей.
 
@@ -146,7 +163,7 @@ OLED — особый случай: Nintendo прикрутила програм
 
 По тестам, HOS applets ломаются на 100+ Гц. Если игра пытается открыть applet выбора пользователя — игра может крашнуться. Некоторые игры ломаются сами по себе. Пример — «Batman: The Enemy Within» при закрытии выше определённой частоты падает.
 
-# Сборка из исходников
+## Сборка из исходников
 
 ```bash
 git clone --recursive https://github.com/dimasick-git/FPSLocker.git
@@ -154,13 +171,39 @@ cd FPSLocker
 make
 ```
 
-CI-сборка работает через GitHub Actions, см. `.github/workflows/build.yml`. Все коммиты в `main`/`master` и каждый PR собираются и загружают артефакт. Подробности — в файле workflow.
+Требуется devkitPro с пакетами `switch-dev` и `devkitA64` (контейнер `devkitpro/devkita64` уже содержит всё нужное). В CI всё это уже настроено через `.github/workflows/build.yml`.
 
-# Синхронизация с upstream
+## Структура репозитория
+
+```
+.
+├── .github/workflows/    # build, release, sync-upstream
+├── .ryazhenka-version    # единый источник версии — читается apply_ryazhenka_patches.sh
+├── docs/SYNC.md          # как работает upstream-sync
+├── include/              # заголовки + языковые файлы (langs/*.hpp)
+├── libs/libryazhahand    # git submodule — наша библиотека UI
+├── scripts/              # apply_ryazhenka_patches.sh, restore_protected.sh, protected_paths.txt
+├── source/               # main.cpp, Lock.cpp/.hpp, Utils.hpp, Modes/, asmjit/, c4/, rapidyaml/
+├── tester/               # вспомогательная утилита для отладки патчей
+├── ExtractTitleids.py    # генератор titleids_with_patches.bin
+├── Makefile              # подключает libryazhahand/ryazhahand.mk
+└── README.md
+```
+
+## Синхронизация с upstream
 
 Workflow `sync-upstream.yml` подтягивает изменения из `masagrator/FPSLocker`, прогоняет их через скрипт `scripts/apply_ryazhenka_patches.sh` (заменяющий `ultrahand` → `ryazhahand`, `ULTR` → `RYZH`, фиксирующий версию и т. д.) и оставляет защищённые пути (`.github/`, `scripts/`, `.gitmodules`, `README.md`, `Makefile`) нетронутыми. Подробности — `docs/SYNC.md`.
 
-# Благодарности
+## Версионирование
+
+- Единственный источник версии — файл `.ryazhenka-version` в корне репозитория.
+- При запуске `scripts/apply_ryazhenka_patches.sh` значение копируется в `APP_VERSION` в `Makefile`.
+- CI-сборки (`build.yml`) дополнительно дописывают к версии `+ryazh.<shortsha>`, чтобы каждый артефакт был трассируем до коммита.
+- При пуше тега `v<X.Y.Z>` (например `v3.3.3`) `release.yml` форсит `APP_VERSION = <X.Y.Z>` и публикует GitHub Release.
+
+Чтобы поднять версию: отредактируйте `.ryazhenka-version`, закоммитьте, поставьте тег `vX.Y.Z`, запушьте тег.
+
+## Благодарности
 
 Спасибо:
 - ~WerWolv за создание Tesla-окружения
@@ -180,7 +223,7 @@ Workflow `sync-upstream.yml` подтягивает изменения из `mas
 - Китайский упрощённый: ~Soneoy, ~Tone Darkwell
 - Китайский традиционный: [david082321](https://github.com/david082321)
 
-# Sync Wait
+## Sync Wait — список совместимых игр
 
 В этих играх можно отключить vsync двойного буфера, выключив Window Sync Wait в FPSLocker:
 - Batman - The Telltale Series (Warehouse-патч сразу включает triple buffer, опция не нужна)
@@ -194,3 +237,7 @@ Workflow `sync-upstream.yml` подтягивает изменения из `mas
 - Xenoblade Chronicles 2
 - Xenoblade Chronicles 3
 - Xenoblade Chronicles X
+
+## Лицензия
+
+Сохранена оригинальная лицензия `masagrator/FPSLocker` — см. `LICENSE`.
