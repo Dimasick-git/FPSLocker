@@ -1,4 +1,4 @@
-name: Release FPSLocker
+﻿name: Release FPSLocker
 
 on:
   push:
@@ -157,7 +157,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: FPSLocker ${{ steps.tag.outputs.tag }} (Ryazhenka)
+          name: FPSLocker ${{ steps.tag.outputs.tag }}
           body_path: release/NOTES.md
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
