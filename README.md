@@ -46,8 +46,8 @@ Full project documentation below is in Russian.
 
 | Файл | Триггеры | Что делает |
 |------|----------|------------|
-| `build.yml` | каждый коммит, каждый PR, ручной запуск | Собирает `.ovl` в контейнере `devkitpro/devkita64`, дописывает к версии `+ryazh.<shortsha>`, проверяет подпись `RYZH`, заливает артефакт `FPSLocker.ovl` + `BUILD_INFO.txt` (имя/email автора коммита, тема, дата, SHA, ссылка на запуск). |
-| `release.yml` | пуш тега `v*` или ручной запуск с указанием тега | Собирает релизный `.ovl`, синхронизирует APP_VERSION с тегом, генерирует release notes и публикует GitHub Release с `.ovl`, `BUILD_INFO.txt` и `.zip`. |
+| `build.yml` | каждый коммит, каждый PR, ручной запуск | Собирает `.ovl` в контейнере `devkitpro/devkita64`, дописывает к версии `+ryazh.<shortsha>`, проверяет подпись `RYZH`, заливает артефакт `FPSLocker.ovl` + `BUILD_INFO.txt` (имя/email автора коммита, тема, дата, SHA, ссылка на запуск). После успешной сборки на `main` — авто-обновляет **rolling-релиз `latest-build`** свежим бинарником. |
+| `release.yml` | пуш тега `v*` или ручной запуск с указанием тега | Собирает релизный `.ovl`, синхронизирует APP_VERSION с тегом, генерирует release notes и публикует **стабильный** GitHub Release с `.ovl`, `BUILD_INFO.txt` и `.zip`. |
 | `sync-upstream.yml` | по расписанию (Пн 04:17 UTC) или ручной запуск | Тянет изменения из `masagrator/FPSLocker`, делает merge с `-X theirs`, откатывает защищённые файлы, прогоняет ряженочные патчи и открывает PR. |
 
 Подробности — `docs/SYNC.md`.
@@ -64,7 +64,14 @@ Full project documentation below is in Russian.
 
 ## Установка
 
-1. Скачайте `FPSLocker.ovl` из последнего [GitHub Release](../../releases) или из артефактов CI-сборки.
+Доступны два канала релизов:
+
+- **Stable** — `v*.*.*` теги. Стабильные релизы, выпускаются вручную через `release.yml`. Берите их, если нужна гарантированная версия.
+- **Rolling** — тег [`latest-build`](../../releases/tag/latest-build). Авто-обновляется CI после **каждого** push'а в `main` (CI-job `auto-release` в `build.yml`). Это всегда самая свежая сборка с тем же `.ovl`, что лежит в артефактах workflow run-а.
+
+Шаги установки:
+
+1. Скачайте `FPSLocker.ovl` из нужного [GitHub Release](../../releases) или из артефактов CI-сборки.
 2. Положите файл в `/switch/.overlays/FPSLocker.ovl` на SD-карте.
 3. Откройте оверлей через Ryazhahand-Overlay / Tesla menu.
 

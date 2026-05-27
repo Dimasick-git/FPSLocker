@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write       # auto-release job updates the rolling `latest-build` release
 
 env:
   # Opt in to Node.js 24 for actions/checkout, actions/upload-artifact, …
@@ -142,3 +142,112 @@ jobs:
             dist/BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 30
+
+  auto-release:
+    name: Auto-release latest main build
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for release notes)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: FPSLocker-*
+          path: artifact
+          merge-multiple: true
+
+      - name: Verify artifact
+        shell: bash
+        run: |
+          ls -la artifact/
+          test -f artifact/FPSLocker.ovl
+          test -f artifact/BUILD_INFO.txt
+          SIG="$(tail -c 4 artifact/FPSLocker.ovl)"
+          echo "Trailing signature: $SIG"
+          test "$SIG" = "RYZH"
+
+      - name: Build release metadata
+        id: meta
+        shell: bash
+        run: |
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          BASE_VERSION="$(grep -E '^APP_VERSION[[:space:]]*:=' Makefile | head -n1 | sed -E 's/.*:=[[:space:]]*//' | tr -d '\r')"
+          AUTHOR_NAME="$(git log -1 --pretty=format:'%an')"
+          AUTHOR_EMAIL="$(git log -1 --pretty=format:'%ae')"
+          COMMIT_SUBJECT="$(git log -1 --pretty=format:'%s')"
+          COMMIT_DATE_UTC="$(git log -1 --pretty=format:'%cI')"
+          {
+            echo "short_sha=$SHORT_SHA"
+            echo "base_version=$BASE_VERSION"
+            echo "author_name=$AUTHOR_NAME"
+            echo "author_email=$AUTHOR_EMAIL"
+            echo "commit_subject=$COMMIT_SUBJECT"
+            echo "commit_date_utc=$COMMIT_DATE_UTC"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Stage release assets
+        shell: bash
+        run: |
+          mkdir -p release
+          cp artifact/FPSLocker.ovl  release/FPSLocker.ovl
+          cp artifact/BUILD_INFO.txt release/BUILD_INFO.txt
+          cd release
+          zip -9 "FPSLocker-latest-build.zip" FPSLocker.ovl BUILD_INFO.txt
+          ls -la
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          PREV_TAG="$(git describe --tags --abbrev=0 --exclude='latest-build' --exclude='nightly' 2>/dev/null || true)"
+          {
+            echo "## Rolling pre-release — latest \`main\` build"
+            echo ""
+            echo "> **Этот релиз перезаписывается на каждый push в \`main\`.** Если нужна стабильная версия — берите релиз с тегом \`v*.*.*\`."
+            echo ""
+            echo "**Build info**"
+            echo "- Base version: \`${{ steps.meta.outputs.base_version }}+ryazh.${{ steps.meta.outputs.short_sha }}\`"
+            echo "- Commit: [\`${{ steps.meta.outputs.short_sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+            echo "- Author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
+            echo "- Subject: ${{ steps.meta.outputs.commit_subject }}"
+            echo "- Date: \`${{ steps.meta.outputs.commit_date_utc }}\`"
+            echo "- Workflow: [run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "- Signature: \`RYZH\`"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              echo "### Changes since \`$PREV_TAG\`"
+              echo ""
+              git log --pretty=format:'- %h %s' "$PREV_TAG..HEAD" | head -40
+              echo ""
+            fi
+            echo ""
+            echo "### Установка"
+            echo "Скачайте \`FPSLocker.ovl\` и положите в \`/switch/.overlays/\` на SD-карте."
+          } > release/NOTES.md
+          cat release/NOTES.md
+
+      - name: Move rolling tag to current commit
+        shell: bash
+        run: |
+          git config user.name  "ryazhahand-release-bot"
+          git config user.email "ryazhahand-release-bot@users.noreply.github.com"
+          git tag -f latest-build
+          git push -f origin refs/tags/latest-build
+
+      - name: Publish / update rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: "FPSLocker — latest main build (${{ steps.meta.outputs.short_sha }})"
+          body_path: release/NOTES.md
+          prerelease: true
+          make_latest: "false"
+          fail_on_unmatched_files: true
+          files: |
+            release/FPSLocker.ovl
+            release/BUILD_INFO.txt
+            release/FPSLocker-latest-build.zip
