@@ -113,12 +113,14 @@ jobs:
         run: |
           mkdir -p release
           cp FPSLocker.ovl "release/FPSLocker.ovl"
+          # BUILD_INFO.txt lives only inside the .zip — release uploads just .ovl + .zip.
           cat > release/BUILD_INFO.txt <<EOF
           FPSLocker (Ryazhenka / libryazhahand build) ${{ steps.tag.outputs.tag }}
           Version        : ${{ steps.tag.outputs.version }}
           Commit         : ${{ github.sha }}
           Short SHA      : ${{ steps.meta.outputs.short_sha }}
-          Author         : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
+          Author         : Dimasick-git
+          Commit author  : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
           Subject        : ${{ steps.meta.outputs.commit_subject }}
           Commit date    : ${{ steps.meta.outputs.commit_date }}
           Built by       : ${{ github.actor }}
@@ -127,6 +129,7 @@ jobs:
           EOF
           cd release
           zip -9 "FPSLocker-${{ steps.tag.outputs.tag }}.zip" FPSLocker.ovl BUILD_INFO.txt
+          rm -f BUILD_INFO.txt
           ls -la
 
       - name: Generate release notes
@@ -139,9 +142,10 @@ jobs:
             echo "Built against \`libryazhahand\`. Drop \`FPSLocker.ovl\` into \`/switch/.overlays/\` on your SD card."
             echo ""
             echo "**Build info**"
+            echo "- Author: **Dimasick-git**"
             echo "- Version: \`${{ steps.tag.outputs.version }}\`"
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
+            echo "- Commit author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
             echo "- Subject: ${{ steps.meta.outputs.commit_subject }}"
             echo "- Date: \`${{ steps.meta.outputs.commit_date }}\`"
             echo "- Built by: \`${{ github.actor }}\` via [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
@@ -159,5 +163,4 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release/FPSLocker.ovl
-            release/BUILD_INFO.txt
             release/FPSLocker-${{ steps.tag.outputs.tag }}.zip

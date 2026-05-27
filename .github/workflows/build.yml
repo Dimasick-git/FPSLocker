@@ -116,6 +116,9 @@ jobs:
         run: |
           mkdir -p dist
           cp FPSLocker.ovl dist/FPSLocker.ovl
+          # BUILD_INFO.txt is for traceability inside the CI artifact / zip only —
+          # it is NOT published as a separate file in the release. Author is
+          # forced to Dimasick-git regardless of which contributor signed the commit.
           cat > dist/BUILD_INFO.txt <<EOF
           FPSLocker (Ryazhenka / libryazhahand build)
           ===========================================
@@ -123,7 +126,8 @@ jobs:
           Commit         : ${{ github.sha }}
           Short SHA      : ${{ steps.meta.outputs.short_sha }}
           Ref            : ${{ github.ref }}
-          Author         : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
+          Author         : Dimasick-git
+          Commit author  : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
           Subject        : ${{ steps.meta.outputs.commit_subject }}
           Commit date    : ${{ steps.meta.outputs.commit_date }}
           Built by       : ${{ github.actor }}
@@ -194,25 +198,26 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          cp artifact/FPSLocker.ovl  release/FPSLocker.ovl
-          cp artifact/BUILD_INFO.txt release/BUILD_INFO.txt
-          cd release
-          zip -9 "FPSLocker-latest-build.zip" FPSLocker.ovl BUILD_INFO.txt
-          ls -la
+          cp artifact/FPSLocker.ovl release/FPSLocker.ovl
+          # BUILD_INFO.txt goes inside the .zip for traceability but is NOT
+          # uploaded as a separate release file (user only wants .ovl + .zip).
+          ( cd release && zip -9 "FPSLocker-latest-build.zip" FPSLocker.ovl ../artifact/BUILD_INFO.txt )
+          ls -la release/
 
       - name: Generate release notes
         shell: bash
         run: |
           PREV_TAG="$(git describe --tags --abbrev=0 --exclude='latest-build' --exclude='nightly' 2>/dev/null || true)"
           {
-            echo "## Rolling pre-release — latest \`main\` build"
+            echo "## Latest \`main\` build"
             echo ""
-            echo "> **Этот релиз перезаписывается на каждый push в \`main\`.** Если нужна стабильная версия — берите релиз с тегом \`v*.*.*\`."
+            echo "> Этот релиз перезаписывается на каждый push в \`main\` и помечается как **latest**."
             echo ""
             echo "**Build info**"
+            echo "- Author: **Dimasick-git**"
             echo "- Base version: \`${{ steps.meta.outputs.base_version }}+ryazh.${{ steps.meta.outputs.short_sha }}\`"
             echo "- Commit: [\`${{ steps.meta.outputs.short_sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
-            echo "- Author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
+            echo "- Commit author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
             echo "- Subject: ${{ steps.meta.outputs.commit_subject }}"
             echo "- Date: \`${{ steps.meta.outputs.commit_date_utc }}\`"
             echo "- Workflow: [run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
@@ -244,10 +249,9 @@ jobs:
           tag_name: latest-build
           name: "FPSLocker — latest main build (${{ steps.meta.outputs.short_sha }})"
           body_path: release/NOTES.md
-          prerelease: true
-          make_latest: "false"
+          prerelease: false
+          make_latest: "true"
           fail_on_unmatched_files: true
           files: |
             release/FPSLocker.ovl
-            release/BUILD_INFO.txt
             release/FPSLocker-latest-build.zip
