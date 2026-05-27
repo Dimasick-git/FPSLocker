@@ -1,0 +1,527 @@
+class SetBuffers : public tsl::Gui {
+public:
+    SetBuffers() {}
+
+    virtual tsl::elm::Element* createUI() override {
+
+		auto list = new tsl::elm::List();
+
+		if (Shared->expectedSetBuffers == -1) list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_ItWillBeAppliedOnNextGameBoot), true));
+		auto *clickableListItem0 = new tsl::elm::ListItem(getStringID(Lang::Id_Double));
+		clickableListItem0->setClickListener([](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning) {
+				SetBuffers_save = 2;
+				if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 2;
+				saveSettings();
+				tsl::goBack(2);
+				//tsl::goBack();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem0);
+
+		if ((Shared -> API) == 3) {
+			auto *clickableListItemv1 = new tsl::elm::ListItem(getStringID(Lang::Id_Triple));
+			clickableListItemv1->setClickListener([](u64 keys) { 
+				if ((keys & HidNpadButton_A) && PluginRunning) {
+					SetBuffers_save = 3;
+					if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
+					saveSettings();
+					tsl::goBack(2);
+					//tsl::goBack();
+					return true;
+				}
+				return false;
+			});
+			list->addItem(clickableListItemv1);
+
+		}
+		else {
+			if ((Shared -> Buffers) >= 3) {
+				if ((Shared -> SetActiveBuffers) > 0) {
+				auto *clickableListItem = new tsl::elm::ListItem(getStringID(Lang::Id_TripleForce));
+				clickableListItem->setClickListener([](u64 keys) { 
+					if ((keys & HidNpadButton_A) && PluginRunning) {
+						SetBuffers_save = 3;
+						if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
+						saveSettings();
+						tsl::goBack(2);
+						//tsl::goBack();
+						return true;
+					}
+					return false;
+				});
+				list->addItem(clickableListItem);
+				}
+				else {
+					auto *clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_Triple));
+					clickableListItem2->setClickListener([](u64 keys) { 
+						if ((keys & HidNpadButton_A) && PluginRunning) {
+							if ((Shared -> Buffers) == 4) SetBuffers_save = 3;
+							else SetBuffers_save = 0;
+							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
+							saveSettings();
+							tsl::goBack(2);
+							//tsl::goBack();
+							return true;
+						}
+						return false;
+					});
+					list->addItem(clickableListItem2);
+				}
+			}
+			
+			if ((Shared -> Buffers) == 4) {
+				if ((Shared -> SetActiveBuffers) > 0) {
+					auto *clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_QuadrupleForce));
+					clickableListItem3->setClickListener([](u64 keys) { 
+						if ((keys & HidNpadButton_A) && PluginRunning) {
+							SetBuffers_save = 4;
+							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 4;
+							saveSettings();
+							tsl::goBack(2);
+							//tsl::goBack();
+							return true;
+						}
+						return false;
+					});
+					list->addItem(clickableListItem3);	
+				}
+				else {
+					auto *clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_Quadruple));
+					clickableListItem3->setClickListener([](u64 keys) { 
+						if ((keys & HidNpadButton_A) && PluginRunning) {
+							SetBuffers_save = 0;
+							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 4;
+							saveSettings();
+							tsl::goBack(2);
+							//tsl::goBack();
+							return true;
+						}
+						return false;
+					});
+					list->addItem(clickableListItem3);
+				}
+			}
+		}
+
+		auto frame = new tsl::elm::OverlayFrame(getStringID(Lang::Id_SetBuffering), " ");
+		#if USING_WIDGET_DIRECTIVE
+        frame->m_showWidget = true;
+        #endif
+
+		frame->setContent(list);
+
+        return frame;
+    }
+};
+
+class SyncMode : public tsl::Gui {
+public:
+    SyncMode() {}
+
+    virtual tsl::elm::Element* createUI() override {
+
+		auto list = new tsl::elm::List();
+
+		auto *clickableListItem = new tsl::elm::ListItem(getStringID(Lang::Id_Enabled));
+		clickableListItem->setClickListener([](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning) {
+				ZeroSyncMode = getStringID(Lang::Id_On);
+				(Shared -> ZeroSync) = 0;
+				saveSettings();
+				tsl::goBack(2);
+				//tsl::goBack();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem);
+
+		auto *clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_SemiEnabled));
+		clickableListItem2->setClickListener([](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning) {
+				ZeroSyncMode = getStringID(Lang::Id_Semi);
+				(Shared -> ZeroSync) = 2;
+				saveSettings();
+				tsl::goBack(2);
+				//tsl::goBack();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem2);
+
+		auto *clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_Disabled));
+		clickableListItem3->setClickListener([](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning) {
+				ZeroSyncMode = getStringID(Lang::Id_Off);
+				(Shared -> ZeroSync) = 1;
+				saveSettings();
+				tsl::goBack(2);
+				//tsl::goBack();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem3);
+		
+        auto frame = new tsl::elm::OverlayFrame(getStringID(Lang::Id_NVNWindowSyncWait), getStringID(Lang::Id_Mode));
+        #if USING_WIDGET_DIRECTIVE
+        frame->m_showWidget = true;
+        #endif
+
+        frame->setContent(list);
+
+        return frame;
+    }
+};
+
+class AdvancedGui : public tsl::Gui {
+public:
+	bool exitPossible = true;
+	char progressBar[5];
+    AdvancedGui() {
+		patchChar[0] = 0;
+		progressBar[0] = 0;
+		configValid = LOCK::readConfig(configPath);
+		if (R_FAILED(configValid)) {
+			if (configValid == 0x202) {
+				sprintf(lockInvalid, getStringID(Lang::Id_GameConfigFileNotFound), TID, BID);
+				size_t appControlDataSize = 0;
+				s32 appContentMetaStatusSize = 0;
+				NsApplicationControlData appControlData;
+				NsApplicationContentMetaStatus appContentMetaStatus[2];
+				uint64_t base_tid = TID & ~0xFFF;
+				if (R_SUCCEEDED(nsGetApplicationControlData(NsApplicationControlSource::NsApplicationControlSource_Storage, base_tid, &appControlData, sizeof(NsApplicationControlData), &appControlDataSize)) 
+					&& R_SUCCEEDED(nsListApplicationContentMetaStatus(base_tid, 0, appContentMetaStatus, 2, &appContentMetaStatusSize))) {
+						u32 index = 0;
+						if (appContentMetaStatusSize == 2 && appContentMetaStatus[1].meta_type == NcmContentMetaType_Patch) index = 1;
+						if (appContentMetaStatus[index].version != 0)
+							snprintf(lockVersionExpected, sizeof(lockVersionExpected), "%s | v%d/%d", appControlData.nacp.display_version, appContentMetaStatus[index].version / 65536, appContentMetaStatus[index].version);
+						else sprintf(lockVersionExpected, "%s | v0", appControlData.nacp.display_version);
+				}
+			}
+			else sprintf(lockInvalid, getStringID(Lang::Id_GameConfigError), configValid);
+		}
+		else {
+			patchValid = !file_exists(patchPath);
+			if (R_FAILED(patchValid)) {
+				if (!FileDownloaded) {
+					if (R_SUCCEEDED(configValid)) {
+						sprintf(patchChar, getStringID(Lang::Id_PatchFileDoesntExistMakeIt));
+					}
+					else sprintf(patchChar, getStringID(Lang::Id_PatchFileDoesntExist));
+				}
+				else {
+					sprintf(patchChar, getStringID(Lang::Id_NewConfigDownloadedSuccessfully));
+				}
+			}
+			else sprintf(patchChar, getStringID(Lang::Id_PatchFileExists));
+		}
+		switch((Shared -> ZeroSync)) {
+			case 0:
+				ZeroSyncMode = getStringID(Lang::Id_On);
+				break;
+			case 1:
+				ZeroSyncMode = getStringID(Lang::Id_Off);
+				break;
+			case 2:
+				ZeroSyncMode = getStringID(Lang::Id_Semi);
+		}
+	}
+
+	size_t base_height = 134;
+
+    virtual tsl::elm::Element* createUI() override {
+
+		auto list = new tsl::elm::List();
+
+		if ((Shared -> API)) {
+			switch((Shared -> API)) {
+				case 1: {
+					list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_GPUAPIInterfaceNVN), false));
+					
+					list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
+						
+						renderer->drawString(nvnBuffers, false, x, y+20, 20, (0xFFFF));
+							
+					}), 60);
+
+					if ((Shared -> Buffers) == 2 || (Shared -> ActiveBuffers) == 2) {
+						auto *clickableListItem3 = new tsl::elm::MiniListItem(getStringID(Lang::Id_WindowSyncWait), ZeroSyncMode);
+						clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+							if ((keys & HidNpadButton_A) && PluginRunning) {
+								//tsl::shiftItemFocus(clickableListItem3);
+								tsl::changeTo<SyncMode>();
+								return true;
+							}
+							return false;
+						});
+						list->addItem(clickableListItem3);
+					}
+					if ((Shared -> Buffers) > 2) {
+						auto *clickableListItem3 = new tsl::elm::MiniListItem(getStringID(Lang::Id_SetBuffering));
+						clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+							if ((keys & HidNpadButton_A) && PluginRunning) {
+								//tsl::shiftItemFocus(clickableListItem3);
+								tsl::changeTo<SetBuffers>();
+								return true;
+							}
+							return false;
+						});
+						list->addItem(clickableListItem3);
+					}
+					break;
+				}
+				case 2:
+					list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_GPUAPIInterfaceEGL), false));
+					break;
+				case 3: {
+					list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_GPUAPIInterfaceVulkan), false));
+
+					list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
+						
+						renderer->drawString(nvnBuffers, false, x, y+20, 20, (0xFFFF));
+							
+					}), 40);
+
+					if ((Shared -> Buffers) >= 2) {
+						auto *clickableListItem3 = new tsl::elm::MiniListItem(getStringID(Lang::Id_SetBuffering));
+						clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+							if ((keys & HidNpadButton_A) && PluginRunning) {
+								//tsl::shiftItemFocus(clickableListItem3);
+								tsl::changeTo<SetBuffers>();
+								return true;
+							}
+							return false;
+						});
+						list->addItem(clickableListItem3);
+					}
+				}
+			}
+		}
+
+		list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_FPSLockerPatches), false));
+
+		if (R_FAILED(configValid)) {
+			base_height = 132;
+		}
+
+		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
+			
+			if (R_SUCCEEDED(configValid)) {
+				
+				renderer->drawString(getStringID(Lang::Id_FoundValidConfigFile), false, x, y+20, 20, (0xFFFF));
+				renderer->drawString(patchAppliedChar, false, x, y+40, 20, (0xFFFF));
+				if (R_FAILED(patchValid)) {
+					renderer->drawString(patchChar, false, x, y+64, 20, (0xF99F));
+				}
+				else renderer->drawString(patchChar, false, x, y+64, 20, (0xFFFF));
+				if (progressBar[0] != 0) {
+					renderer->drawString(progressBar, false, x+300, y+(base_height), 20, (0xF99F));
+				}
+			}
+			else {
+				renderer->drawString(lockInvalid, false, x, y+20, 20, (0xFFFF));
+				if (patchChar[0] != 0) {
+					renderer->drawString(patchChar, false, x, y+84, 20, (0xF99F));
+					if (progressBar[0] != 0) {
+						renderer->drawString(progressBar, false, x+300, y+(base_height), 20, (0xF99F));
+					}
+				}
+				else renderer->drawString(lockVersionExpected, false, x, y+84, 20, (0xFFFF));
+			}
+				
+
+		}), base_height);
+
+		if (R_SUCCEEDED(configValid)) {
+			list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_RememberToRebootTheGameAfterConversion), true));
+			auto *clickableListItem = new tsl::elm::MiniListItem(getStringID(Lang::Id_ConvertConfigToPatchFile));
+			clickableListItem->setClickListener([](u64 keys) { 
+				if ((keys & HidNpadButton_A) && PluginRunning) {
+					patchValid = LOCK::createPatch(patchPath);
+					if (R_SUCCEEDED(patchValid)) {
+						sprintf(patchChar, getStringID(Lang::Id_PatchFileCreatedSuccessfully));
+					}
+					else sprintf(patchChar, getStringID(Lang::Id_ErrorWhileCreatingPatch), patchValid);
+					return true;
+				}
+				return false;
+			});
+			list->addItem(clickableListItem);
+
+			auto *clickableListItem2 = new tsl::elm::MiniListItem(getStringID(Lang::Id_DeletePatchFile));
+			clickableListItem2->setClickListener([](u64 keys) { 
+				if ((keys & HidNpadButton_A) && PluginRunning) {
+					if (R_SUCCEEDED(patchValid)) {
+						remove(patchPath);
+						patchValid = 0x202;
+						sprintf(patchChar, getStringID(Lang::Id_PatchFileDeletedSuccessfully));
+					}
+					return true;
+				}
+				return false;
+			});
+			list->addItem(clickableListItem2);
+		}
+		if (R_FAILED(configValid)) {
+			char temp[128] = "";
+			snprintf(temp, sizeof(temp), getStringID(Lang::Id_ThisCanTakeUpTo30Seconds), timeout_in_seconds * sources.size());
+			list->addItem(new tsl::elm::CategoryHeader(temp, true));
+		}
+		auto *clickableListItem4 = new tsl::elm::MiniListItem(getStringID(Lang::Id_CheckDownloadConfigFile));
+		clickableListItem4->setClickListener([this](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning && exitPossible) {
+				exitPossible = false;
+				sprintf(patchChar, getStringID(Lang::Id_CheckingWarehouseForConfig));
+
+				threadCreate(&t1, downloadPatch, NULL, NULL, 0x20000, 0x3F, 3);
+				threadStart(&t1);
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem4);
+
+		list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_Misc), true));
+
+		auto *clickableListItem5 = new tsl::elm::MiniToggleListItem(getStringID(Lang::Id_HaltUnfocusedGame), forceSuspend_save);
+		clickableListItem5->setClickListener([this](u64 keys) { 
+			if ((keys & HidNpadButton_A) && PluginRunning) {
+				forceSuspend_save = !forceSuspend_save;
+				(Shared -> forceSuspend) = forceSuspend_save;
+				saveSettings();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(clickableListItem5);		
+
+
+        auto frame = new tsl::elm::OverlayFrame("FPSLocker", getStringID(Lang::Id_AdvancedSettings));
+        #if USING_WIDGET_DIRECTIVE
+        frame->m_showWidget = true;
+        #endif
+        
+		frame->setContent(list);
+
+        return frame;
+    }
+
+	virtual void update() override {
+		static uint8_t i = 10;
+
+		if (PluginRunning) {
+			if (i > 9) {
+				if ((Shared -> patchApplied) == 1) {
+					sprintf(patchAppliedChar, getStringID(Lang::Id_PatchWasLoadedToGame));
+				}
+				else if ((Shared -> patchApplied) == 2) {
+					sprintf(patchAppliedChar, getStringID(Lang::Id_MasterWriteWasLoadedToGame));
+				}
+				else sprintf(patchAppliedChar, getStringID(Lang::Id_PluginDidntApplyPatchToGame));
+				switch (Shared -> API) {
+					case 1: {
+						if (((Shared -> Buffers) >= 2 && (Shared -> Buffers) <= 4)) {
+							sprintf(nvnBuffers, getStringID(Lang::Id_SetActiveAvailableBuffers), (Shared -> SetActiveBuffers), (Shared -> ActiveBuffers), (Shared -> Buffers));
+						}
+						break;
+					}
+					case 3: {
+						if (((Shared -> Buffers) >= 2 && (Shared -> Buffers) <= 4)) {
+							sprintf(nvnBuffers, getStringID(Lang::Id_ActiveBuffers), (Shared -> Buffers));
+						}
+						break;
+					}
+				}
+				i = 0;
+			}
+			else i++;
+		}
+	}
+
+    virtual bool handleInput(u64 keysDown, u64 keysHeld, const HidTouchState &touchPos, HidAnalogStickState joyStickPosLeft, HidAnalogStickState joyStickPosRight) override {
+		if (keysDown & HidNpadButton_B) {
+			if (!exitPossible) {
+				atomic_store(&cancel_flag, 1);
+				threadWaitForExit(&t1);
+				threadClose(&t1);
+				exitPossible = true;
+				atomic_store(&cancel_flag, 0);
+				error_code = UINT32_MAX;
+			}
+			tsl::goBack();
+			triggerExitFeedback();
+			return true;
+		}
+		Result rc = error_code;
+		if (rc != UINT32_MAX && rc != 0x404) {
+			threadWaitForExit(&t1);
+			threadClose(&t1);
+			exitPossible = true;
+			error_code = UINT32_MAX;
+			progressBar[0] = 0;
+		}
+		if (rc == 0x316) {
+			strcpy(patchChar, getStringID(Lang::Id_ConnectionTimeout));
+		}
+		else if (rc == 0x212 || rc == 0x312) {
+			sprintf(patchChar, getStringID(Lang::Id_ConfigIsNotAvailableRC), rc);
+		}
+		else if (rc == 0x404) {
+			if (data_to_download != 0) {
+				strcpy(patchChar, getStringID(Lang::Id_ConfigIsNotAvailableExitNotPossibleUntilFinished));
+				snprintf(progressBar, sizeof(progressBar), "%lu%%", (size_t)(data_downloaded * 100) / data_to_download);
+
+			}
+			else strcpy(patchChar, getStringID(Lang::Id_ConfigIsNotAvailableExitNotPossibleUntilFinished));
+		}
+		else if (rc == 0x405) {
+			strcpy(patchChar, getStringID(Lang::Id_ConfigIsNotAvailableTimeout));
+		}
+		else if (rc == 0x406) {
+			strcpy(patchChar, getStringID(Lang::Id_ConfigIsNotAvailableConnectionError));
+		}
+		else if (rc == 0x104) {
+			strcpy(patchChar, getStringID(Lang::Id_NoNewConfigAvailable));
+		}
+		else if (rc == 0x412) {
+			strcpy(patchChar, getStringID(Lang::Id_InternetConnectionNotAvailable));
+		}
+		else if (rc == 0x1001) {
+			strcpy(patchChar, getStringID(Lang::Id_PatchIsNotNeededForThisGame));
+		}
+		else if (rc == 0x1002) {
+			strcpy(patchChar, getStringID(Lang::Id_ThisGameIsNotListedInWarehouse));
+		}
+		else if (rc == 0x1003) {
+			sprintf(patchChar, getStringID(Lang::Id_ThisGameIsListedInWarehouseWithDifferentVersionPatchNotNeeded), expected_display_version);
+		}
+		else if (rc == 0x1004) {
+			sprintf(patchChar, getStringID(Lang::Id_ThisGameIsListedInWarehouseWithDifferentVersionPatchNeeded), expected_display_version);
+		}
+		else if (rc == 0x1005) {
+			sprintf(patchChar, getStringID(Lang::Id_ThisGameIsListedInWarehouseWithDifferentVersionConfigAvailable), expected_display_version);
+		}
+		else if (rc == 0x1006) {
+			strcpy(patchChar, getStringID(Lang::Id_ThisGameIsListedInWarehouseConfigNotAvailable));
+		}
+		else if (R_SUCCEEDED(rc)) {
+			FILE* fp = fopen(patchPath, "rb");
+			if (fp) {
+				fclose(fp);
+				remove(patchPath);
+			}
+			//tsl::goBack();
+			tsl::swapTo<AdvancedGui>();
+			return true;
+		}
+		else if (rc != UINT32_MAX) {
+			sprintf(patchChar, getStringID(Lang::Id_ConnectionErrorRC), rc);
+		}
+        return false;   // Return true here to signal the inputs have been consumed
+    }
+};

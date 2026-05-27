@@ -1,0 +1,11 @@
+build/
+*.o
+*.d
+*.elf
+*.nro
+*.nacp
+*.ovl
+*.map
+dist/
+release/
+.DS_Store

@@ -1,0 +1,1138 @@
+#pragma once
+#include <curl/curl.h>
+#include <stdatomic.h>
+
+const unsigned char data[] = {
+	#embed "titleids_with_patches.bin"
+};
+
+std::array<uint64_t, sizeof(data) / 8>* titleids_needing_patch = (std::array<uint64_t, sizeof(data) / 8>*)&data[0];
+
+struct resolutionCalls {
+	uint16_t width;
+	uint16_t height;
+	uint16_t calls;
+};
+
+struct NxFpsSharedBlock {
+	uint32_t MAGIC;
+	uint8_t FPS;
+	float FPSavg;
+	bool pluginActive;
+	uint8_t FPSlocked;
+	uint8_t FPSmode;
+	uint8_t ZeroSync;
+	uint8_t patchApplied;
+	uint8_t API;
+	uint32_t FPSticks[10];
+	uint8_t Buffers;
+	uint8_t SetBuffers;
+	uint8_t ActiveBuffers;
+	uint8_t SetActiveBuffers;
+	union {
+		struct {
+			bool handheld: 1;
+			bool docked: 1;
+			unsigned int reserved: 6;
+		} PACKED ds;
+		uint8_t general;
+	} displaySync;
+	resolutionCalls renderCalls[8];
+	resolutionCalls viewportCalls[8];
+	bool forceOriginalRefreshRate;
+	bool dontForce60InDocked;
+	bool forceSuspend;
+	uint8_t currentRefreshRate;
+	float readSpeedPerSecond;
+	uint8_t FPSlockedDocked;
+	uint64_t frameNumber;
+	int8_t expectedSetBuffers;
+} NX_PACKED;
+
+static_assert(sizeof(NxFpsSharedBlock) == 174);
+
+struct DockedAdditionalSettings {
+	bool dontForce60InDocked;
+	bool fpsTargetWithoutRRMatchLowest;
+	bool displaySyncDockedOutOfFocus60;
+};
+
+#include "Langs.hpp"
+
+NxFpsSharedBlock* Shared = 0;
+uint8_t* refreshRate_shared = 0;
+bool _isDocked = false;
+bool _def = true;
+bool PluginRunning = false;
+bool state = false;
+bool closed = false;
+bool check = false;
+bool SaltySD = false;
+bool bak = false;
+bool plugin = true;
+uint8_t SetBuffers_save = 0;
+bool forceSuspend_save = false;
+char FPSMode_c[64];
+char FPSTarget_c[64];
+char PFPS_c[32];
+char nvnBuffers[96] = "";
+char SyncWait_c[32];
+bool displaySyncOutOfFocus60 = false;
+#ifdef __SWITCH__
+	#define systemtickfrequency 19200000
+#elif __OUNCE__
+	#define systemtickfrequency 31250000
+#else
+	uint64_t systemtickfrequency = 19200000;
+#endif
+
+char configPath[128] = "";
+char patchPath[128] = "";
+char savePath[64] = "";
+uint64_t PID = 0;
+uint64_t TID = 0;
+uint64_t BID = 0;
+
+Handle remoteSharedMemory = 1;
+SharedMemory _sharedmemory = {};
+bool SharedMemoryUsed = false;
+
+Result configValid = 10;
+Result patchValid = 0x202;
+char lockInvalid[96] = "";
+char lockVersionExpected[40] = "";
+char patchChar[256] = "";
+char patchAppliedChar[64] = "";
+uint8_t* patchApplied_shared = 0;
+Thread t0;
+std::string ZeroSyncMode = "";
+
+bool FileDownloaded = false;
+Thread t1;
+bool downloadingRunning = false;
+Result error_code = UINT32_MAX;
+bool curl_timeout = false;
+uint8_t supportedHandheldRefreshRates[] = {40, 45, 50, 55, 60};
+uint8_t supportedHandheldRefreshRatesOLED[] = {45, 50, 55, 60};
+Mutex TitlesAccess;
+
+volatile const bool forceEnglishLanguage = false;
+std::string overlayName = "sdmc:/switch/.overlays/";
+
+LEvent threadexit = {0};
+
+/// ApplicationControlDataCondition
+typedef struct {
+    u8 type[8];                                                                          ///< Type
+    struct {
+        u8 priority;                                                                     ///< Priority
+        u8 reserved_x1[0x7];                                                             ///< Reserved
+        u16 aoc_index;                                                                   ///< AocIndex
+        u8 reserved_xa[0x6];                                                             ///< Reserved
+    } data[8];
+    u8 count;                                                                            ///< Count
+} NacpApplicationControlDataCondition;
+
+typedef union {
+    NacpLanguageEntry lang[16];                                                          ///< \ref NacpLanguageEntry, use only if TitlesDataFormat == 0
+    struct {
+        u16 buffer_size;
+        u8 buffer[0x2FFE];
+    } compressed_data;                                                                   ///< ///< \ref use only if TitlesDataFormat == 1, uncompressed data matches NacpLanguageEntry[32]
+} NacpLanguageEntryData;
+
+/// ns ApplicationControlProperty
+typedef struct {
+	NacpLanguageEntryData lang_data;                                                     ///< \ref NacpLanguageEntryData
+    u8 isbn[0x25];                                                                       ///< Isbn
+    u8 startup_user_account;                                                             ///< StartupUserAccount
+    u8 user_account_switch_lock;                                                         ///< UserAccountSwitchLock
+    u8 add_on_content_registration_type;                                                 ///< AddOnContentRegistrationType
+    u32 attribute_flag;                                                                  ///< AttributeFlag
+    u32 supported_language_flag;                                                         ///< SupportedLanguageFlag
+    u32 parental_control_flag;                                                           ///< ParentalControlFlag
+    u8 screenshot;                                                                       ///< Screenshot
+    u8 video_capture;                                                                    ///< VideoCapture
+    u8 data_loss_confirmation;                                                           ///< DataLossConfirmation
+    u8 play_log_policy;                                                                  ///< PlayLogPolicy
+    u64 presence_group_id;                                                               ///< PresenceGroupId
+    s8 rating_age[0x20];                                                                 ///< RatingAge
+    char display_version[0x10];                                                          ///< DisplayVersion
+    u64 add_on_content_base_id;                                                          ///< AddOnContentBaseId
+    u64 save_data_owner_id;                                                              ///< SaveDataOwnerId
+    u64 user_account_save_data_size;                                                     ///< UserAccountSaveDataSize
+    u64 user_account_save_data_journal_size;                                             ///< UserAccountSaveDataJournalSize
+    u64 device_save_data_size;                                                           ///< DeviceSaveDataSize
+    u64 device_save_data_journal_size;                                                   ///< DeviceSaveDataJournalSize
+    u64 bcat_delivery_cache_storage_size;                                                ///< BcatDeliveryCacheStorageSize
+    u64 application_error_code_category;                                                 ///< ApplicationErrorCodeCategory
+    u64 local_communication_id[0x8];                                                     ///< LocalCommunicationId
+    u8 logo_type;                                                                        ///< LogoType
+    u8 logo_handling;                                                                    ///< LogoHandling
+    u8 runtime_add_on_content_install;                                                   ///< RuntimeAddOnContentInstall
+    u8 runtime_parameter_delivery;                                                       ///< RuntimeParameterDelivery
+    u8 appropriate_age_for_china;                                                        ///< AppropriateAgeForChina
+    u8 reserved_x30f5;                                                                   ///< Reserved
+    u8 crash_report;                                                                     ///< CrashReport
+    u8 hdcp;                                                                             ///< Hdcp
+    u64 pseudo_device_id_seed;                                                           ///< SeedForPseudoDeviceId
+    char bcat_passphrase[0x41];                                                          ///< BcatPassphrase
+    u8 startup_user_account_option;                                                      ///< StartupUserAccountOption
+    u8 reserved_for_user_account_save_data_operation[0x6];                               ///< ReservedForUserAccountSaveDataOperation
+    u64 user_account_save_data_size_max;                                                 ///< UserAccountSaveDataSizeMax
+    u64 user_account_save_data_journal_size_max;                                         ///< UserAccountSaveDataJournalSizeMax
+    u64 device_save_data_size_max;                                                       ///< DeviceSaveDataSizeMax
+    u64 device_save_data_journal_size_max;                                               ///< DeviceSaveDataJournalSizeMax
+    u64 temporary_storage_size;                                                          ///< TemporaryStorageSize
+    u64 cache_storage_size;                                                              ///< CacheStorageSize
+    u64 cache_storage_journal_size;                                                      ///< CacheStorageJournalSize
+    u64 cache_storage_data_and_journal_size_max;                                         ///< CacheStorageDataAndJournalSizeMax
+    u16 cache_storage_index_max;                                                         ///< CacheStorageIndexMax
+    u8 reserved_x318a;                                                                   ///< Reserved
+    u8 runtime_upgrade;                                                                  ///< RuntimeUpgrade
+    u32 supporting_limited_applications_licenses;                                        ///< SupportingLimitedApplicationLicenses
+    u64 play_log_queryable_application_id[0x10];                                         ///< PlayLogQueryableApplicationId
+    u8 play_log_query_capability;                                                        ///< PlayLogQueryCapability
+    u8 repair_flag;                                                                      ///< RepairFlag
+    u8 program_index;                                                                    ///< ProgramIndex
+    u8 required_network_service_license_on_launch;                                       ///< RequiredNetworkServiceLicenseOnLaunchFlag
+    u8 application_error_code_prefix;                                                    ///< [20.0.0+] ApplicationErrorCodePrefix
+    u8 titles_data_format;                                                               ///< [21.0.0+] TitlesDataFormat
+    u8 acd_index;                                                                        ///< [20.0.0+] AcdIndex
+    u8 apparent_platform;                                                                ///< [21.0.0+] ApparentPlatform
+    NacpNeighborDetectionClientConfiguration neighbor_detection_client_configuration;    ///< NeighborDetectionClientConfiguration
+    NacpApplicationJitConfiguration jit_configuration;                                   ///< JitConfiguration
+    u16 required_addon_contents_set_binary_descriptor[0x20];                             ///< RequiredAddOnContentsSetBinaryDescriptor
+    u8 play_report_permission;                                                           ///< PlayReportPermission
+    u8 crash_screenshot_for_prod;                                                        ///< CrashScreenshotForProd
+    u8 crash_screenshot_for_dev;                                                         ///< CrashScreenshotForDev
+    u8 contents_availability_transition_policy;                                          ///< ContentsAvailabilityTransitionPolicy
+    u8 supported_language_flag_for_nx_addon;                                             ///< [21.0.0+] SupportedLanguageFlagForNxAddon
+    u64 accessible_launch_required_version[0x8];                                         ///< AccessibleLaunchRequiredVersion
+    NacpApplicationControlDataCondition application_control_data_condition;              ///< [20.0.0+] ApplicationControlDataCondition
+    u8 initial_program_index;                                                            ///< [20.0.0+] InitialProgramIndex
+    u8 reserved_x34d2;                                                                   ///< Reserved
+    u32 accessible_program_index_flags;                                                  ///< [20.0.0+] AccessibleProgramIndexFlags
+    u8 album_file_export;                                                                ///< [20.0.0+] AlbumFileExport
+    u8 reserved_x34d9[0x7];                                                              ///< Reserved
+    u8 save_data_certificate_bytes[0x80];                                                ///< [20.0.0+] SaveDataCertificateBytes
+    u8 has_in_game_voice_char;                                                           ///< [20.0.0+] HasInGameVoiceChat
+    u8 reserved_x3561[0x3];                                                              ///< Reserved
+    u32 supported_extra_addon_content_flag;                                              ///< [20.0.0+] SupportedExtraAddOnContentFlag
+    u8 has_karaoke_feature;                                                              ///< [21.0.0+] HasKaraokeFeature
+    u8 reserved_x3569[0x697];                                                            ///< Reserved
+    u8 platform_specific_region[0x400];                                                  ///< [20.0.0+] PlatformSpecificRegion
+} NacpStruct2;
+
+struct Title
+{
+	uint64_t TitleID;
+	std::string TitleName;
+};
+
+struct DisplayData {
+	uint32_t pixelClockkHz;
+	uint16_t width;
+	uint16_t height;
+	float refreshRate;
+	uint16_t widthFrontPorch;
+	uint16_t heightFrontPorch;
+	uint16_t widthSync;
+	uint16_t heightSync;
+	uint16_t widthBackPorch;
+	uint16_t heightBackPorch;
+};
+
+std::vector<Title> titles;
+std::string TV_name = "Unknown";
+
+bool file_exists(const char *filename)
+{
+    struct stat buffer;
+    return stat(filename, &buffer) == 0 ? true : false;
+}
+
+void getDockedHighestRefreshRate(uint8_t* highestRefreshRate, uint8_t* setLinkRate = nullptr, uint8_t* setLaneCount = nullptr) {
+	if (SaltySD_Connect()) {
+		*highestRefreshRate = 60;
+		return;
+	}
+	uint8_t refreshRate = 60;
+	uint8_t linkRate = 10;
+	uint8_t laneCount = 0;
+	Result rc = SaltySD_GetDockedHighestRefreshRate(&refreshRate, &linkRate, &laneCount);
+	SaltySD_Term();
+	if (R_SUCCEEDED(rc) && setLinkRate) *setLinkRate = linkRate;
+	if (R_SUCCEEDED(rc) && setLaneCount) *setLaneCount = laneCount;
+	if (R_SUCCEEDED(rc) && refreshRate > 60) *highestRefreshRate = refreshRate;
+	else *highestRefreshRate = 60;
+
+}
+
+void LoadDockedModeAllowedSave(DockedModeRefreshRateAllowed &rr, DockedAdditionalSettings &as, int* displayCRC, bool is720p) {
+	// Initialize refresh rates
+    for (size_t i = 0; i < sizeof(DockedModeRefreshRateAllowed); i++) {
+        if (DockedModeRefreshRateAllowedValues[i] == 60 || DockedModeRefreshRateAllowedValues[i] == 50) rr[i] = true;
+        else rr[i] = false;
+    }
+	
+	// Initialize additional settings
+	as.dontForce60InDocked = false;
+	as.fpsTargetWithoutRRMatchLowest = false;
+	as.displaySyncDockedOutOfFocus60 = false;
+	TV_name = "Unknown";
+	
+	tsl::hlp::doWithSmSession([]{
+		setsysInitialize();
+	});
+	
+	SetSysEdid edid = {0};
+	if (R_FAILED(setsysGetEdid(&edid))) return;
+	
+	int crc32 = crc32Calculate(&edid, sizeof(edid));
+	if (displayCRC) *displayCRC = crc32;
+	
+	char path[128];
+	snprintf(path, sizeof(path), "sdmc:/SaltySD/plugins/FPSLocker/ExtDisplays/%08X.ini", crc32);
+	
+	if (!file_exists(path)) return;
+	
+	// Read file directly without creating large string buffer
+	FILE* file = fopen(path, "r");
+	if (!file) return;
+	
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	if (size == 0) {
+		fclose(file);
+		return;
+	}
+	fseek(file, 0, SEEK_SET);
+	
+	std::string string_data(size, 0);
+	fread(string_data.data(), size, 1, file);
+	fclose(file);
+	
+	tsl::hlp::ini::IniData iniData = tsl::hlp::ini::parseIni(string_data);
+	
+	if (!iniData.contains("Common")) return;
+	
+	auto& common = iniData["Common"];
+	
+	// Get TV name
+	if (common.contains("tvName")) {
+		TV_name = common["tvName"];
+	}
+	
+	// Parse refresh rates
+	const char* key = is720p ? "refreshRateAllowed720p" : "refreshRateAllowed";
+	if (common.contains(key)) {
+		const auto& rrStr = common[key];
+		if (rrStr.size() >= 2 && rrStr.front() == '{' && rrStr.back() == '}') {
+			// Use string_view to avoid substring allocation
+			std::string_view rrAllowed(rrStr.data() + 1, rrStr.size() - 2);
+			
+			size_t start = 0;
+			while (start < rrAllowed.size()) {
+				size_t end = rrAllowed.find(',', start);
+				if (end == std::string_view::npos) end = rrAllowed.size();
+				
+				int value = 0;
+				auto result = std::from_chars(rrAllowed.data() + start, rrAllowed.data() + end, value);
+				
+				if (result.ec == std::errc{}) {
+					for (size_t i = 0; i < sizeof(DockedModeRefreshRateAllowedValues); i++) {
+						if (value == DockedModeRefreshRateAllowedValues[i]) {
+							rr[i] = true;
+							break;
+						}
+					}
+				}
+				start = end + 1;
+			}
+		}
+	}
+	
+	// Parse boolean settings
+	if (common.contains("allowPatchesToForce60InDocked")) {
+		as.dontForce60InDocked = (strncasecmp(common["allowPatchesToForce60InDocked"].c_str(), "False", 5) == 0);
+	}
+	if (common.contains("matchLowestRefreshRate")) {
+		as.fpsTargetWithoutRRMatchLowest = (strncasecmp(common["matchLowestRefreshRate"].c_str(), "True", 4) == 0);
+	}
+	if (common.contains("bringDefaultRefreshRateWhenOutOfFocus")) {
+		as.displaySyncDockedOutOfFocus60 = (strncasecmp(common["bringDefaultRefreshRateWhenOutOfFocus"].c_str(), "True", 4) == 0);
+	}
+}
+
+void SaveDockedModeAllowedSave(DockedModeRefreshRateAllowed rr, DockedAdditionalSettings &as, bool is720p) {
+	tsl::hlp::doWithSmSession([]{
+		setsysInitialize();
+	});
+    SetSysEdid edid = {0};
+    if (R_FAILED(setsysGetEdid(&edid))) {
+		return;
+    }
+    char path[128] = "";
+	DockedModeRefreshRateAllowed rr_impl = {0};
+	DockedAdditionalSettings as_impl = {0};
+	LoadDockedModeAllowedSave(rr_impl, as_impl, nullptr, !is720p);
+    snprintf(path, sizeof(path), "sdmc:/SaltySD/plugins/FPSLocker/ExtDisplays/%08X.ini", crc32Calculate(&edid, sizeof(edid)));
+    FILE* file = fopen(path, "w");
+    if (file) {
+		std::string allowedRR = "{";
+		std::string allowedRR720p = "{";
+		if (!is720p) {
+			for (size_t i = 0; i < sizeof(DockedModeRefreshRateAllowed); i++) {
+				if (rr[i]) {
+					allowedRR += std::to_string(DockedModeRefreshRateAllowedValues[i]);
+					allowedRR += ",";
+				}
+				if (rr_impl[i]) {
+					allowedRR720p += std::to_string(DockedModeRefreshRateAllowedValues[i]);
+					allowedRR720p += ",";
+				}
+			}		
+		}
+		else {
+			for (size_t i = 0; i < sizeof(DockedModeRefreshRateAllowed); i++) {
+				if (rr[i]) {
+					allowedRR720p += std::to_string(DockedModeRefreshRateAllowedValues[i]);
+					allowedRR720p += ",";
+				}
+				if (rr_impl[i]) {
+					allowedRR += std::to_string(DockedModeRefreshRateAllowedValues[i]);
+					allowedRR += ",";
+				}
+			}
+		}
+		allowedRR.erase(allowedRR.end()-1);
+		allowedRR += "}";
+		allowedRR720p.erase(allowedRR720p.end()-1);
+		allowedRR720p += "}";
+		fwrite("[Common]\n", strlen("[Common]\n"), 1, file);
+		fwrite("tvName=", strlen("tvName="), 1, file);
+		fwrite(TV_name.c_str(), TV_name.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+		fwrite("refreshRateAllowed=", strlen("refreshRateAllowed="), 1, file);
+		fwrite(allowedRR.c_str(), allowedRR.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+		std::string df60 = (as.dontForce60InDocked ? "False" : "True");
+		std::string fpst = (as.fpsTargetWithoutRRMatchLowest ? "True" : "False");
+		std::string dsdo = (as.displaySyncDockedOutOfFocus60 ? "True" : "False");
+		fwrite("allowPatchesToForce60InDocked=", strlen("allowPatchesToForce60InDocked="), 1, file);
+		fwrite(df60.c_str(), df60.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+		fwrite("matchLowestRefreshRate=", strlen("matchLowestRefreshRate="), 1, file);
+		fwrite(fpst.c_str(), fpst.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+		fwrite("bringDefaultRefreshRateWhenOutOfFocus=", strlen("bringDefaultRefreshRateWhenOutOfFocus="), 1, file);
+		fwrite(dsdo.c_str(), dsdo.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+		fwrite("refreshRateAllowed720p=", 23, 1, file);
+		fwrite(allowedRR720p.c_str(), allowedRR720p.length(), 1, file);
+		fwrite("\n", 1, 1, file);
+        fclose(file);
+
+    }
+    return;
+}
+
+char expected_display_version[0x10] = "";
+
+_Atomic(int) cancel_flag = 0;
+
+curl_off_t data_to_download = 0;
+curl_off_t data_downloaded = 0;
+
+static int xfer_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+                         curl_off_t ultotal, curl_off_t ulnow) {
+	data_to_download = dltotal;
+	data_downloaded = dlnow;
+    if (atomic_load(&cancel_flag)) {
+        return 1; // Abort
+    }
+    return 0;
+}
+
+constexpr std::array sources = {
+	std::pair<const char*, const char*>("https://gitee.com/sskyswitch/FPSLocker-Warehouse/raw/v4/", ""),
+	std::pair<const char*, const char*>("https://raw.githubusercontent.com/masagrator/FPSLocker-Warehouse/v4/", "")
+};
+
+/**
+ * @brief Gets the \ref NsApplicationControlData for the specified application.
+ * @note Only available on [21.0.0+]. Faster than nsGetApplicationControlData2 while having the same functionality.
+ * @param[in] source Source, official sw uses ::NsApplicationControlSource_Storage.
+ * @param[in] application_id ApplicationId.
+ * @param[out] buffer \ref NsApplicationControlData
+ * @param[in] flag1 Default is 0. 0xFF speeds up execution.
+ * @param[in] flag2 Default is 0.
+ * @param[in] size Size of the buffer.
+ * @param[out] actual_size Actual output size.
+ * @param[out] unk Returned with size, always 0.
+ */
+Result nsGetApplicationControlData3(NsApplicationControlSource source, u64 application_id, NsApplicationControlData* buffer, size_t size, u8 flag1, u8 flag2, u64* actual_size) {
+    Service srv={0}, *srv_ptr = &srv;
+    Result rc=0;
+    u32 cmd_id = 20;
+    rc = nsGetReadOnlyApplicationControlDataInterface(&srv);
+
+    const struct {
+        u8 source;
+        u8 flags[2];
+        u8 pad[5];
+        u64 application_id;
+    } in = { source, {flag1, flag2}, {0}, application_id };
+
+    struct {
+		u32 unk1;
+		u32 size;
+		u32 unk2;
+	} tmp;
+
+    if (R_SUCCEEDED(rc)) rc = serviceDispatchInOut(srv_ptr, cmd_id, in, tmp,
+        .buffer_attrs = { SfBufferAttr_HipcMapAlias | SfBufferAttr_Out },
+        .buffers = { { buffer, size } },
+    );
+    if (R_SUCCEEDED(rc)) {
+        if (actual_size) *actual_size = tmp.size;
+    }
+
+    serviceClose(&srv);
+    return rc;
+}
+
+void sendConfirmation(Result temp_error_code) {
+	s32 appContentMetaStatusSize = 0;
+	NsApplicationControlData* appControlData = new NsApplicationControlData;
+	NsApplicationContentMetaStatus* appContentMetaStatus = new NsApplicationContentMetaStatus[2];
+	char display_version[sizeof(appControlData -> nacp.display_version)] = "";
+	uint32_t version = 0;
+	Result rc = 1;
+	if (hosversionBefore(19,0,0)) {
+		rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, TID, appControlData, sizeof(NsApplicationControlData), nullptr);
+	}
+	else if (hosversionBefore(21,0,0)) {
+		rc = nsGetApplicationControlData2(NsApplicationControlSource_Storage, TID, appControlData, sizeof(NsApplicationControlData), 0xFF, 0, nullptr, nullptr);
+	}
+	else rc = nsGetApplicationControlData3(NsApplicationControlSource_Storage, TID, appControlData, sizeof(NsApplicationControlData), 0xFF, 0, nullptr);
+
+	if (R_SUCCEEDED(rc)) {
+		strcpy(display_version, appControlData->nacp.display_version);
+		if (R_SUCCEEDED(nsListApplicationContentMetaStatus(TID, 0, appContentMetaStatus, 2, &appContentMetaStatusSize))) {
+			u32 index = 0;
+			if (appContentMetaStatusSize == 2 && appContentMetaStatus[1].meta_type == NcmContentMetaType_Patch) index = 1;
+			version = appContentMetaStatus[index].version / 65536;
+		}
+	}
+	delete appControlData;
+	delete[] appContentMetaStatus;
+
+	static uint64_t last_TID_checked = 0;
+	if (TID != last_TID_checked) {
+		last_TID_checked = TID;
+		CURL *curl_ga = curl_easy_init();
+		if (curl_ga) {
+			constexpr char macro_id[] = "\x41\x4B\x66\x79\x63\x62\x78\x72\x77\x45\x30\x51\x66\x75\x39\x34\x4A\x38\x44\x6E\x69\x53\x46\x6A\x33\x61\x73\x73\x6C\x68\x78\x42\x46\x43\x2D\x50\x52\x7A\x50\x64\x55\x6E\x37\x41\x5F\x4C\x4D\x61\x69\x37\x4F\x56\x57\x42\x70\x6E\x62\x73\x61\x53\x77\x55\x4D\x42\x72\x44\x69\x45\x69\x6F\x57\x65\x33\x77";
+			constexpr char m_template[] = "\x68\x74\x74\x70\x73\x3a\x2f\x2f\x73\x63\x72\x69\x70\x74\x2e\x67\x6f\x6f\x67\x6c\x65\x2e\x63\x6f\x6d\x2f\x6d\x61\x63\x72\x6f\x73\x2f\x73\x2f\x25\x73\x2f\x65\x78\x65\x63\x3f\x54\x49\x44\x3d\x25\x30\x31\x36\x6c\x58\x26\x42\x49\x44\x3d\x25\x30\x31\x36\x6c\x58\x26\x56\x65\x72\x73\x69\x6f\x6e\x3d\x25\x64\x26\x44\x69\x73\x70\x6c\x61\x79\x56\x65\x72\x73\x69\x6f\x6e\x3d\x25\x73\x26\x46\x6f\x75\x6e\x64\x3d\x25\x64\x26\x4e\x52\x4f\x3d\x25\x30\x31\x36\x6c\x58\x26\x41\x70\x70\x56\x65\x72\x73\x69\x6f\x6e\x3d\x25\x73";
+			char link[256] = "";
+			MemoryInfo mem = {0};
+			u32 pageinfo = 0;
+			svcQueryMemory(&mem, &pageinfo, (uintptr_t)&file_exists);
+
+			char* display_version_converted = curl_easy_escape(curl_ga, display_version, 0);
+			char* app_version_converted = curl_easy_escape(curl_ga, APP_VERSION, 0);
+			uint8_t valid = 1;
+			if (temp_error_code == 0x404) valid = 0;
+			else if (temp_error_code == 0x312) valid = 2;
+			else valid = 3;
+			snprintf(link, sizeof(link), m_template, macro_id, TID, BID, version, display_version_converted, valid, *(uint64_t*)(mem.addr + 64), APP_VERSION);
+			curl_free(display_version_converted);
+			curl_free(app_version_converted);
+
+			curl_easy_setopt(curl_ga, CURLOPT_URL, link);
+			curl_easy_setopt(curl_ga, CURLOPT_SSL_VERIFYPEER, 0L);
+			curl_easy_setopt(curl_ga, CURLOPT_SSL_VERIFYHOST, 0L);
+			curl_easy_setopt(curl_ga, CURLOPT_TIMEOUT_MS, 1000);
+			curl_easy_perform(curl_ga);
+			curl_easy_cleanup(curl_ga);
+		}
+	}
+}
+
+#define timeout_in_seconds 30
+
+Result downloadPatchImpl(const char* source, const char* suffix) {
+
+
+	Result temp_error_code = -1;
+
+	curl_timeout = false;
+
+	uint64_t startTick = svcGetSystemTick();
+	uint64_t timeoutTick = startTick + (timeout_in_seconds * systemtickfrequency);
+	long msPeriod = (timeoutTick - svcGetSystemTick()) / (systemtickfrequency / 1000);
+
+	CURL *curl = curl_easy_init();
+
+    if (curl) {
+
+		char download_path[256] = "";
+		char file_path[192] = "";
+		snprintf(download_path, sizeof(download_path), "sdmc:/SaltySD/plugins/FPSLocker/patches/%016lX/", TID);
+		
+		ult::createDirectory(download_path);
+
+		snprintf(file_path, sizeof(file_path), "sdmc:/SaltySD/plugins/FPSLocker/patches/%016lX/temp.yaml", TID);
+
+		FILE* fp = fopen(file_path, "wb+");
+		if (!fp) {
+			curl_easy_cleanup(curl);
+			curl_global_cleanup();
+			socketExit();
+			smExit();
+			return 0x101;
+		}
+
+		//FILE* logfileerr = fopen("sdmc:/log_err.txt", "ab");
+
+		snprintf(download_path, sizeof(download_path), "%sSaltySD/plugins/FPSLocker/patches/%016lX/%016lX.yaml%s", source, TID, BID, suffix);
+        curl_easy_setopt(curl, CURLOPT_URL, download_path);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0");
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xfer_callback);
+		//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+		//curl_easy_setopt(curl, CURLOPT_STDERR, logfileerr);
+		msPeriod = (timeoutTick - svcGetSystemTick()) / (systemtickfrequency / 1000);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, msPeriod);
+
+        CURLcode res = curl_easy_perform(curl);
+		
+		fclose(fp);
+		//fclose(logfileerr);
+		if (res != CURLE_OK) {
+			remove(file_path);
+			if (res == CURLE_OPERATION_TIMEDOUT) temp_error_code = 0x316;
+			else temp_error_code = 0x200 + res;
+		}
+		else {
+			long http_code = 0;
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+			if (http_code == 200) {
+				temp_error_code = 0;
+			}
+			else if (http_code == 404 || http_code == 400) {
+				temp_error_code = 0x404;
+			}
+			else temp_error_code = 0x312;
+			if (temp_error_code) remove(file_path);
+		}
+
+		if (!temp_error_code) {
+			fp = fopen(file_path, "rb");
+			fseek(fp, 0, SEEK_END);
+			size_t filesize1 = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+			char* buffer1 = (char*)calloc(1, filesize1 + 1);
+			fread(buffer1, 1, filesize1, fp);
+			fclose(fp);
+			fp = fopen(configPath, "rb");
+			if (fp) {
+				fseek(fp, 0, SEEK_END);
+				size_t filesize2 = ftell(fp);
+				fseek(fp, 0, SEEK_SET);
+				if (filesize2 != filesize1) {
+					fclose(fp);
+					free(buffer1);
+					FileDownloaded = true;
+				}
+				else {
+					char* buffer2 = (char*)calloc(1, filesize2 + 1);
+					fread(buffer2, 1, filesize2, fp);
+					fclose(fp);
+					if (memcmp(buffer1, buffer2, filesize1)) {
+						FileDownloaded = true;
+					}
+					else {
+						temp_error_code = 0x104;
+						remove(file_path);
+					}
+					free(buffer1);
+					free(buffer2);
+				}
+			}
+			else {
+				free(buffer1);
+				FileDownloaded = true;
+			}
+			if (!temp_error_code) {
+				remove(configPath);
+				rename(file_path, configPath);
+				FILE* config = fopen(configPath, "r");
+				memset(&LOCK::configBuffer, 0, sizeof(LOCK::configBuffer));
+				fread(&LOCK::configBuffer, 1, 32768, config);
+				fclose(config);
+				strcat(&LOCK::configBuffer[0], "\n");
+				LOCK::tree = ryml::parse_in_place(LOCK::configBuffer);
+				size_t root_id = LOCK::tree.root_id();
+				if (LOCK::tree.is_map(root_id) && LOCK::tree.find_child(root_id, "Addons") != c4::yml::NONE && !LOCK::tree["Addons"].is_keyval() && LOCK::tree["Addons"].num_children() > 0) {
+					for (size_t i = 0; i < LOCK::tree["Addons"].num_children(); i++) {
+						std::string temp = "";
+						LOCK::tree["Addons"][i] >> temp;
+						std::string dpath = source + temp;
+						std::string path = "sdmc:/" + temp;
+						strncpy(&download_path[0], dpath.c_str(), 255);
+						strncpy(&file_path[0], path.c_str(), 191);
+						curl_easy_setopt(curl, CURLOPT_URL, download_path);
+						msPeriod = (timeoutTick - svcGetSystemTick()) / (systemtickfrequency / 1000);
+						if (msPeriod < 1000) msPeriod = 1000;
+						curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, msPeriod);
+						FILE* fp = fopen(file_path, "wb");
+						if (!fp) {
+							ult::createDirectory(ult::getParentDirFromPath(file_path));
+							fp = fopen(file_path, "wb");
+						}
+						if (fp) {
+							curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+							res = curl_easy_perform(curl);
+							fclose(fp);
+						}
+					}
+				}
+			}
+		}
+		else if (temp_error_code == 0x404) {
+			error_code = 0x404;
+			std::string readme_path = source;
+			readme_path += "README.md";
+			readme_path += suffix;
+			curl_easy_setopt(curl, CURLOPT_URL, readme_path.c_str());
+			data_to_download = 0;
+			data_downloaded = 0;
+			fp = fopen("sdmc:/SaltySD/plugins/FPSLocker/patches/README.md", "wb+");
+			if (!fp) {
+				curl_easy_cleanup(curl);
+				curl_global_cleanup();
+				socketExit();
+				smExit();
+				return 0x101;
+			}
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+			msPeriod = (timeoutTick - svcGetSystemTick()) / (systemtickfrequency / 1000);
+			if (msPeriod < 1000) msPeriod = 1000;
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, msPeriod);
+			CURLcode res = curl_easy_perform(curl);
+			if (res == CURLE_OK) {
+				long http_code = 0;
+				curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+				if (http_code != 200) {
+					fclose(fp);
+					remove("sdmc:/SaltySD/plugins/FPSLocker/patches/README.md");
+					curl_easy_cleanup(curl);
+					return 0x406;
+				}
+				size_t filesize = ftell(fp);
+				fseek(fp, 0, SEEK_SET);
+				char* buffer = (char*)calloc(1, filesize + 1);
+				fread(buffer, 1, filesize, fp);
+				char findText_char[] = "# FPSLocker Warehouse";
+				char BID_search[] = "`1234567890ABCDEF` (◯";
+				if (!strncmp(buffer, findText_char, strlen(findText_char))) {
+					snprintf(BID_search, sizeof(BID_search), "`%016lX`", TID);
+					auto start = std::search(&buffer[0], &buffer[filesize], &BID_search[0], &BID_search[strlen(BID_search)]);
+					if (start == &buffer[filesize]) {
+						temp_error_code = 0x1002;
+					}
+					else {
+						strcpy(BID_search, ") |");
+						auto end = std::search(start, &buffer[filesize], &BID_search[0], &BID_search[3]);
+						for (int i = -1; i >= -16; i--) {
+							if (end[i] == ',' && end[i+1] == ' ' && end[i+2] != 'v') {
+								size_t offset = 0;
+								for (int x = i+2; x <= i+18; x++) {
+									if (end[x] == ')') {
+										expected_display_version[offset] = 0;
+										break;
+									}
+									expected_display_version[offset++] = end[x];
+								}
+								break;
+							}
+						}
+						snprintf(BID_search, sizeof(BID_search), "`%016lX` (◯", BID);
+						if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) != end) {
+							temp_error_code = 0x1001;
+						}
+						else {
+							snprintf(BID_search, sizeof(BID_search), "`%016lX` (", BID);
+							if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) == end) {
+								strcpy(BID_search, " (");
+								auto found = std::find_end(start, end, &BID_search[0], &BID_search[2]);
+								found += 2;
+								if (strncmp("◯", found, strlen("◯")) == 0) {
+									temp_error_code = 0x1003;
+								}
+								else if (strncmp("❌", found, strlen("❌")) == 0) {
+									temp_error_code = 0x1004;
+								}
+								else if (strncmp("[", found, strlen("[")) == 0) {
+									temp_error_code = 0x1005;
+								}
+							}
+							else {
+								snprintf(BID_search, sizeof(BID_search), "`%016lX` (❌", BID);
+								if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) != end) {
+									temp_error_code = 0x1006;
+								}						
+							}	
+						}
+					}
+				}
+				else temp_error_code = 0x1007;
+				free(buffer);
+			}
+			else if (res == CURLE_OPERATION_TIMEDOUT) {
+				temp_error_code = 0x405;
+			}
+			else temp_error_code = 0x406;
+			fclose(fp);
+			remove("sdmc:/SaltySD/plugins/FPSLocker/patches/README.md");
+		}
+
+        curl_easy_cleanup(curl);
+    }
+
+	return temp_error_code;
+}
+
+void updateErrorcode(Result rc, Result* last_error_code, Result* last_bad_error_code) {
+	if (rc > 0 && rc < 0x1000) {
+		*last_bad_error_code = rc;
+	}
+	else *last_error_code = rc;
+}
+
+void downloadPatch(void*) {
+
+	if (!TID || !BID) {
+		error_code = 0x316;
+		return;
+	}
+
+	constexpr SocketInitConfig socketInitConfig = {
+	    // TCP buffers
+	    .tcp_tx_buf_size     = 16 * 1024,   // 16 KB default
+	    .tcp_rx_buf_size     = 16 * 1024,   // 16 KB default
+	    .tcp_tx_buf_max_size = 32 * 1024,   // 64 KB default max
+	    .tcp_rx_buf_max_size = 32 * 1024,   // 64 KB default max
+	    
+	    // UDP buffers
+	    .udp_tx_buf_size     = 512,         // 512 B default
+	    .udp_rx_buf_size     = 512,         // 512 B default
+	
+	    // Socket buffer efficiency
+	    .sb_efficiency       = 1,           // 0 = default, balanced memory vs CPU
+	                                        // 1 = prioritize memory efficiency (smaller internal allocations)
+	    .bsd_service_type    = BsdServiceType_Auto // Auto-select service
+	};
+
+	smInitialize();
+	nifmInitialize(NifmServiceType_System);
+	u32 dummy = 0;
+	NifmInternetConnectionType NifmConnectionType = (NifmInternetConnectionType)-1;
+	NifmInternetConnectionStatus NifmConnectionStatus = (NifmInternetConnectionStatus)-1;
+	if (R_FAILED(nifmGetInternetConnectionStatus(&NifmConnectionType, &dummy, &NifmConnectionStatus)) || NifmConnectionStatus != NifmInternetConnectionStatus_Connected) {
+		nifmExit();
+		smExit();
+		error_code = 0x412;
+		return;
+	}
+	nifmExit();
+	socketInitialize(&socketInitConfig);
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+	Result last_error_code = UINT32_MAX;
+	Result last_bad_error_code = 0x316;
+	bool exitImmediately = false;
+	for (size_t i = 0; i < sources.size(); i++) {
+		Result rc = downloadPatchImpl(sources[i].first, sources[i].second);
+		if (atomic_load(&cancel_flag)) {
+			last_error_code = 0x312;
+			exitImmediately = true;
+			break;
+		}
+		updateErrorcode(rc, &last_error_code, &last_bad_error_code);
+		if (R_SUCCEEDED(rc)) break;
+	}
+	if (!exitImmediately) sendConfirmation(last_error_code);
+	if (last_error_code == UINT32_MAX) last_error_code = last_bad_error_code;
+    curl_global_cleanup();
+	socketExit();
+	smExit();
+	error_code = last_error_code;
+	return;
+}
+
+void loopThread(void*) {
+	do {
+		if (R_FAILED(pmdmntGetApplicationProcessId(&PID))) break;
+	} while(!leventWait(&threadexit, 1'000'000'000));
+	PluginRunning = false;
+	check = false;
+	closed = true;
+}
+
+uint64_t getBID() {
+	u64 BID_temp = 0;
+
+	if (R_SUCCEEDED(ldrDmntInitialize())) {
+		LoaderModuleInfo* module_infos = (LoaderModuleInfo*)malloc(sizeof(LoaderModuleInfo) * 16);
+		s32 module_infos_count = 0;
+		Result ret = ldrDmntGetProcessModuleInfo(PID, module_infos, 16, &module_infos_count);
+		ldrDmntExit();
+
+		if (R_SUCCEEDED(ret)) {
+			for (int itr = 0; itr < module_infos_count; itr++) {
+				static u64 comp_address = 0;
+				if (!comp_address) {
+					comp_address = module_infos[itr].base_address;
+					continue;
+				}
+				if ((module_infos[itr].base_address - comp_address == 0x4000) || (module_infos[itr].base_address - comp_address == 0x6000) || (module_infos[itr].base_address - comp_address == 0x5000)) {
+					for (int itr2 = 0; itr2 < 8; itr2++) {
+						*(uint8_t*)((uint64_t)&BID_temp+itr2) = module_infos[itr].build_id[itr2];
+					}
+					BID_temp = __builtin_bswap64(BID_temp);
+					itr = module_infos_count;
+				}
+				else comp_address = module_infos[itr].base_address;
+			}
+		}
+		free(module_infos);
+	}
+
+	return BID_temp;
+}
+
+bool LoadSharedMemory() {
+	if (SaltySD_Connect())
+		return false;
+
+	SaltySD_GetSharedMemoryHandle(&remoteSharedMemory);
+	SaltySD_Term();
+
+	shmemLoadRemote(&_sharedmemory, remoteSharedMemory, 0x1000, Perm_Rw);
+	if (!shmemMap(&_sharedmemory)) {
+		SharedMemoryUsed = true;
+		return true;
+	}
+	return false;
+}
+
+ptrdiff_t searchSharedMemoryBlock(uintptr_t base) {
+	ptrdiff_t search_offset = 0;
+	while(search_offset < 0x1000) {
+		uint32_t* MAGIC_shared = (uint32_t*)(base + search_offset);
+		if (*MAGIC_shared == 0x465053) {
+			return search_offset;
+		}
+		else search_offset += 4;
+	}
+	return -1;
+}
+
+bool CheckPort () {
+	Handle saltysd;
+	for (int i = 0; i < 67; i++) {
+		if (R_SUCCEEDED(svcConnectToNamedPort(&saltysd, "InjectServ"))) {
+			svcCloseHandle(saltysd);
+			break;
+		}
+		else {
+			if (i == 66) return false;
+			svcSleepThread(1'000'000);
+		}
+	}
+	for (int i = 0; i < 67; i++) {
+		if (R_SUCCEEDED(svcConnectToNamedPort(&saltysd, "InjectServ"))) {
+			svcCloseHandle(saltysd);
+			return true;
+		}
+		else svcSleepThread(1'000'000);
+	}
+	return false;
+}
+
+// Returns true if decompressed correctly.
+bool nacp_decompress(NsApplicationControlData* appControlData)
+{	
+
+	NacpStruct2* nacp = (NacpStruct2*)&(appControlData -> nacp);
+	Bytef* temp_buffer = (Bytef*)calloc(32, sizeof(NacpLanguageEntry));
+	if (!temp_buffer)
+		return false;
+
+    z_stream strm = {0};
+
+    if (inflateInit2(&strm, -15) != Z_OK) {
+		free(temp_buffer);
+        return false;
+	}
+
+    strm.next_in   = (Bytef*)nacp->lang_data.compressed_data.buffer;
+    strm.avail_in  = nacp->lang_data.compressed_data.buffer_size;
+    strm.next_out  = temp_buffer;
+    strm.avail_out = sizeof(NacpLanguageEntry[32]);
+
+    int ret = inflate(&strm, Z_FINISH);
+	bool res = false;
+    if (ret == Z_STREAM_END) {
+		memcpy(&appControlData->nacp, temp_buffer, 0x3000);
+		res = true;
+	}
+
+    inflateEnd(&strm);
+	free(temp_buffer);
+    return res;
+}
+
+std::string getAppName(uint64_t Tid)
+{
+	NsApplicationControlData* appControlData = (NsApplicationControlData*)malloc(sizeof(NsApplicationControlData));
+
+	Result rc = -1;
+	if (hosversionBefore(19,0,0)) {
+		rc = nsGetApplicationControlData(NsApplicationControlSource::NsApplicationControlSource_Storage, Tid, appControlData, sizeof(NsApplicationControlData), nullptr);
+	}
+	//This is faster by 30% than function above on 19.0.0-20.5.0
+	else if (hosversionBefore(21,0,0)) {
+		rc = nsGetApplicationControlData2(NsApplicationControlSource::NsApplicationControlSource_Storage, Tid, appControlData, sizeof(NsApplicationControlData), 0xFF, 0, nullptr, nullptr);
+	}
+	//This is faster by 10% than function above on 21.0.0-21.2.0
+	else if (hosversionBefore(22,0,0)) {
+		rc = nsGetApplicationControlData3(NsApplicationControlSource::NsApplicationControlSource_Storage, Tid, appControlData, sizeof(NsApplicationControlData), 0xFF, 0, nullptr);
+	}
+	//This is faster by 75% than function above on 22.0.0+
+	else {
+		rc = nsGetApplicationControlData2(NsApplicationControlSource::NsApplicationControlSource_Storage, Tid, appControlData, sizeof(NsApplicationControlData), 1, 0, nullptr, nullptr);
+	}
+	
+	if (R_FAILED(rc)) {
+		free(appControlData);
+		char returnTID[18];
+		sprintf(returnTID, "%016lx-", Tid);
+		return (std::string)returnTID;
+	}
+
+	NacpStruct2* nacp = (NacpStruct2*)&(appControlData -> nacp);
+	if (nacp->titles_data_format == 1) {
+		if (!nacp_decompress(appControlData)) {
+			free(appControlData);
+			char returnTID[18];
+			sprintf(returnTID, "%016lx-", Tid);
+			return (std::string)returnTID;			
+		}
+	}
+	
+	NacpLanguageEntry* languageEntry = &nacp->lang_data.lang[getNacpLanguage()];
+	if (languageEntry->name[0] == 0) {
+		for (size_t i = 0; i < 16; i++) {
+			if (nacp->lang_data.lang[i].name[0] != 0) {
+				languageEntry = &nacp->lang_data.lang[i];
+				break;
+			}
+		}
+	}
+	if (languageEntry->name[0] == 0) {
+		free(appControlData);
+		char returnTID[18];
+		sprintf(returnTID, "0x%X", rc);
+		return (std::string)returnTID;
+	}
+	std::string to_return = languageEntry->name;
+	free(appControlData);
+	return to_return;
+}
+
+Result getTitles(int32_t count)
+{
+	NsApplicationRecord* appRecords = (NsApplicationRecord*)malloc(count * sizeof(NsApplicationRecord));
+	int32_t actualAppRecordCnt = 0;
+	Result rc = nsListApplicationRecord(appRecords, count, 0, &actualAppRecordCnt);
+	if (R_FAILED(rc)) {
+		free(appRecords);
+		return rc;
+	}
+	for (int32_t i = 0; i < actualAppRecordCnt; i++) {
+		if (appRecords[i].application_id != 0) {
+			Title title;
+			title.TitleID = appRecords[i].application_id;
+			title.TitleName = getAppName(appRecords[i].application_id);
+			mutexLock(&TitlesAccess);
+			titles.emplace_back(title);
+			mutexUnlock(&TitlesAccess);
+		}
+	}
+	free(appRecords);
+	return rc;
+}
+
+void TitlesThread(void*) {
+	getTitles(32);
+}
+
+void setForceEnglishLanguage(bool set) {
+	uintptr_t ptr_func = (uintptr_t)&TitlesThread;
+	MemoryInfo mem = {0};
+	u32 pageinfo = 0;
+	svcQueryMemory(&mem, &pageinfo, ptr_func);
+	bool* ptrBool = (bool*)&forceEnglishLanguage;
+	uintptr_t ptrBool_integer = (uintptr_t)ptrBool;
+	ptrdiff_t ptrBool_offset = ptrBool_integer - mem.addr;
+	FILE* file = fopen(overlayName.c_str(), "rb+");
+	if (file) {
+		fseek(file, ptrBool_offset, 0);
+		fwrite(&set, 1, 1, file);
+		fclose(file);
+	}
+}
+
+bool saveSettings() {
+	if (!(Shared -> FPSlocked) && !(Shared -> FPSlockedDocked) && !(Shared -> ZeroSync) && !SetBuffers_save && !forceSuspend_save) {
+		remove(savePath);
+	}
+	else {
+		DIR* dir = opendir("sdmc:/SaltySD/plugins/");
+		if (!dir) {
+			mkdir("sdmc:/SaltySD/plugins/", 777);
+		}
+		else closedir(dir);
+		dir = opendir("sdmc:/SaltySD/plugins/FPSLocker/");
+		if (!dir) {
+			mkdir("sdmc:/SaltySD/plugins/FPSLocker/", 777);
+		}
+		else closedir(dir);
+		FILE* file = fopen(savePath, "wb");
+		if (file) {
+			fwrite(&(Shared->FPSlocked), 1, 1, file);
+			if (SetBuffers_save > 2 || (!SetBuffers_save && (Shared -> Buffers) > 2)) {
+				(Shared -> ZeroSync) = 0;
+			}
+			fwrite(&(Shared->ZeroSync), 1, 1, file);
+			fwrite(&SetBuffers_save, 1, 1, file);
+			fwrite(&forceSuspend_save, 1, 1, file);
+			fwrite(&(Shared->FPSlockedDocked), 1, 1, file);
+			fclose(file);
+		}
+		else return false;
+	}
+	return true;
+}

@@ -1,0 +1,153 @@
+name: Sync upstream (masagrator/FPSLocker)
+
+# Pulls in changes from masagrator/FPSLocker, re-applies all Ryazhenka
+# customisations via scripts/apply_ryazhenka_patches.sh, and opens a PR.
+# Protected files (Makefile, .gitmodules, .github/, scripts/, README.md, etc.)
+# are restored from the current Ryazhenka branch so the fork never breaks.
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"        # every Monday 04:17 UTC
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: "Upstream repo (owner/name)"
+        required: false
+        default: "masagrator/FPSLocker"
+      upstream_branch:
+        description: "Upstream branch"
+        required: false
+        default: "main"
+      target_branch:
+        description: "Local target branch the PR will merge into"
+        required: false
+        default: "main"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_REPO: ${{ github.event.inputs.upstream || 'masagrator/FPSLocker' }}
+      UPSTREAM_BRANCH: ${{ github.event.inputs.upstream_branch || 'main' }}
+      TARGET_BRANCH: ${{ github.event.inputs.target_branch || 'main' }}
+    steps:
+      - name: Checkout local
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.target_branch || 'main' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "ryazhahand-sync-bot"
+          git config user.email "ryazhahand-sync-bot@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" || true
+          git fetch upstream "${UPSTREAM_BRANCH}" --tags
+
+      - name: Create sync branch
+        id: branch
+        run: |
+          STAMP="$(date -u +%Y%m%d-%H%M%S)"
+          BRANCH="sync/upstream-${STAMP}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream (favor upstream for conflicts, then re-protect)
+        id: merge
+        shell: bash
+        run: |
+          set +e
+          git merge --no-ff --no-edit --allow-unrelated-histories \
+            -X theirs "upstream/${UPSTREAM_BRANCH}"
+          MERGE_RC=$?
+          set -e
+          echo "merge_rc=$MERGE_RC" >> "$GITHUB_OUTPUT"
+          # Even on conflict (rc!=0), -X theirs usually resolves; if it did not,
+          # mark unresolved files as theirs to keep moving — the protect step
+          # below will restore everything that must stay Ryazhenka.
+          if [ "$MERGE_RC" -ne 0 ]; then
+            git diff --name-only --diff-filter=U | while read -r f; do
+              git checkout --theirs -- "$f" || true
+              git add -- "$f" || true
+            done
+            git commit --no-edit || true
+          fi
+
+      - name: Restore protected Ryazhenka files
+        shell: bash
+        run: |
+          bash scripts/restore_protected.sh "${TARGET_BRANCH}"
+
+      - name: Apply Ryazhenka patches (rename ultrahand -> ryazhahand, etc.)
+        shell: bash
+        run: |
+          bash scripts/apply_ryazhenka_patches.sh
+
+      - name: Commit re-application
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "sync: re-apply Ryazhenka customisations after upstream merge"
+          else
+            echo "Nothing to re-apply."
+          fi
+
+      - name: Detect changes vs target
+        id: diff
+        shell: bash
+        run: |
+          if git diff --quiet "origin/${TARGET_BRANCH}" -- ; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push sync branch
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git push -u origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open Pull Request
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = "${{ steps.branch.outputs.branch }}";
+            const target = process.env.TARGET_BRANCH;
+            const upstream = process.env.UPSTREAM_REPO;
+            const upstreamBranch = process.env.UPSTREAM_BRANCH;
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              head:  `${context.repo.owner}:${branch}`,
+              state: "open",
+            });
+            if (prs.length === 0) {
+              await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                head:  branch,
+                base:  target,
+                title: `sync: pull upstream ${upstream}@${upstreamBranch}`,
+                body: [
+                  `Automated upstream sync from \`${upstream}\` (branch \`${upstreamBranch}\`).`,
+                  ``,
+                  `Steps executed:`,
+                  `1. Merged \`upstream/${upstreamBranch}\` with \`-X theirs\`.`,
+                  `2. Restored protected Ryazhenka files via \`scripts/restore_protected.sh\`.`,
+                  `3. Re-applied transformations via \`scripts/apply_ryazhenka_patches.sh\`.`,
+                  ``,
+                  `**Review carefully** — source/header changes from upstream may need manual adaptation`,
+                  `to the \`libryazhahand\` API surface.`,
+                ].join("\n"),
+              });
+            }

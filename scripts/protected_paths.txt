@@ -1,0 +1,10 @@
+# Paths that must never be overwritten by an upstream sync.
+# One pattern per line. Used by scripts/restore_protected.sh (git checkout patterns).
+.github/
+scripts/
+docs/
+.gitmodules
+.gitignore
+README.md
+Makefile
+libs/libryazhahand

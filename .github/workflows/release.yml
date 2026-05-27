@@ -1,0 +1,148 @@
+name: Release FPSLocker
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v3.3.3). Will be created if missing."
+        required: true
+        type: string
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::Empty tag name"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || steps.tag.outputs.tag }}
+
+      - name: Mark workspace as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Resolve commit metadata
+        id: meta
+        shell: bash
+        run: |
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          AUTHOR_NAME="$(git log -1 --pretty=format:'%an')"
+          AUTHOR_EMAIL="$(git log -1 --pretty=format:'%ae')"
+          COMMIT_SUBJECT="$(git log -1 --pretty=format:'%s')"
+          COMMIT_DATE="$(git log -1 --pretty=format:'%cI')"
+          {
+            echo "short_sha=$SHORT_SHA"
+            echo "author_name=$AUTHOR_NAME"
+            echo "author_email=$AUTHOR_EMAIL"
+            echo "commit_subject=$COMMIT_SUBJECT"
+            echo "commit_date=$COMMIT_DATE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync APP_VERSION with tag
+        shell: bash
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          sed -i -E "s|^(APP_VERSION[[:space:]]*:=[[:space:]]*).*|\1${VERSION}|" Makefile
+          echo "Release APP_VERSION ->"
+          grep -E '^APP_VERSION' Makefile
+
+      - name: Build .ovl
+        shell: bash
+        run: |
+          source /opt/devkitpro/devkitvars.sh
+          make -j"$(nproc)"
+
+      - name: Verify Ryazhahand signature
+        shell: bash
+        run: |
+          SIG="$(tail -c 4 FPSLocker.ovl)"
+          echo "Trailing signature: $SIG"
+          test "$SIG" = "RYZH"
+
+      - name: Stage release assets
+        shell: bash
+        run: |
+          mkdir -p release
+          cp FPSLocker.ovl "release/FPSLocker.ovl"
+          cat > release/BUILD_INFO.txt <<EOF
+          FPSLocker (Ryazhenka / libryazhahand build) ${{ steps.tag.outputs.tag }}
+          Version        : ${{ steps.tag.outputs.version }}
+          Commit         : ${{ github.sha }}
+          Short SHA      : ${{ steps.meta.outputs.short_sha }}
+          Author         : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
+          Subject        : ${{ steps.meta.outputs.commit_subject }}
+          Commit date    : ${{ steps.meta.outputs.commit_date }}
+          Built by       : ${{ github.actor }}
+          Workflow run   : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Repository     : ${{ github.server_url }}/${{ github.repository }}
+          EOF
+          cd release
+          zip -9 "FPSLocker-${{ steps.tag.outputs.tag }}.zip" FPSLocker.ovl BUILD_INFO.txt
+          ls -la
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo "## FPSLocker ${{ steps.tag.outputs.tag }} (Ryazhenka build)"
+            echo ""
+            echo "Built against \`libryazhahand\`. Drop \`FPSLocker.ovl\` into \`/switch/.overlays/\` on your SD card."
+            echo ""
+            echo "**Build info**"
+            echo "- Version: \`${{ steps.tag.outputs.version }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Author: \`${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>\`"
+            echo "- Subject: ${{ steps.meta.outputs.commit_subject }}"
+            echo "- Date: \`${{ steps.meta.outputs.commit_date }}\`"
+            echo "- Built by: \`${{ github.actor }}\` via [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo ""
+            echo "Signature: \`RYZH\`"
+          } > release/NOTES.md
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: FPSLocker ${{ steps.tag.outputs.tag }} (Ryazhenka)
+          body_path: release/NOTES.md
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          fail_on_unmatched_files: true
+          files: |
+            release/FPSLocker.ovl
+            release/BUILD_INFO.txt
+            release/FPSLocker-${{ steps.tag.outputs.tag }}.zip

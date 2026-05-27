@@ -1,0 +1,118 @@
+name: Build FPSLocker
+
+on:
+  push:
+    branches: [ "**" ]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (devkitPro/devkita64)
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Mark workspace as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Resolve commit metadata
+        id: meta
+        shell: bash
+        run: |
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          AUTHOR_NAME="$(git log -1 --pretty=format:'%an')"
+          AUTHOR_EMAIL="$(git log -1 --pretty=format:'%ae')"
+          COMMIT_SUBJECT="$(git log -1 --pretty=format:'%s')"
+          COMMIT_DATE="$(git log -1 --pretty=format:'%cI')"
+          APP_VERSION="$(grep -E '^APP_VERSION[[:space:]]*:=' Makefile | head -n1 | sed -E 's/.*:=[[:space:]]*//' | tr -d '\r')"
+          {
+            echo "short_sha=$SHORT_SHA"
+            echo "author_name=$AUTHOR_NAME"
+            echo "author_email=$AUTHOR_EMAIL"
+            echo "commit_subject=$COMMIT_SUBJECT"
+            echo "commit_date=$COMMIT_DATE"
+            echo "app_version=$APP_VERSION"
+          } >> "$GITHUB_OUTPUT"
+          echo "==== BUILD META ===="
+          echo "version : $APP_VERSION"
+          echo "commit  : $SHORT_SHA  ($COMMIT_DATE)"
+          echo "author  : $AUTHOR_NAME <$AUTHOR_EMAIL>"
+          echo "subject : $COMMIT_SUBJECT"
+
+      - name: Inject build metadata into APP_VERSION
+        shell: bash
+        run: |
+          # Append short SHA to APP_VERSION so every artifact is traceable to a commit.
+          BASE_VERSION="${{ steps.meta.outputs.app_version }}"
+          SHORT_SHA="${{ steps.meta.outputs.short_sha }}"
+          NEW_VERSION="${BASE_VERSION}+ryazh.${SHORT_SHA}"
+          sed -i -E "s|^(APP_VERSION[[:space:]]*:=[[:space:]]*).*|\1${NEW_VERSION}|" Makefile
+          echo "Patched APP_VERSION -> ${NEW_VERSION}"
+          grep -E '^APP_VERSION' Makefile
+
+      - name: Build .ovl
+        shell: bash
+        run: |
+          source /opt/devkitpro/devkitvars.sh
+          make -j"$(nproc)"
+
+      - name: Verify Ryazhahand signature
+        shell: bash
+        run: |
+          if [ ! -f FPSLocker.ovl ]; then
+            echo "::error::FPSLocker.ovl was not produced"
+            exit 1
+          fi
+          SIG="$(tail -c 4 FPSLocker.ovl)"
+          echo "Trailing signature: $SIG"
+          if [ "$SIG" != "RYZH" ]; then
+            echo "::error::Expected RYZH signature, got '$SIG'"
+            exit 1
+          fi
+
+      - name: Stage artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp FPSLocker.ovl dist/FPSLocker.ovl
+          cat > dist/BUILD_INFO.txt <<EOF
+          FPSLocker (Ryazhenka / libryazhahand build)
+          ===========================================
+          Version        : ${{ steps.meta.outputs.app_version }}+ryazh.${{ steps.meta.outputs.short_sha }}
+          Commit         : ${{ github.sha }}
+          Short SHA      : ${{ steps.meta.outputs.short_sha }}
+          Ref            : ${{ github.ref }}
+          Author         : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
+          Subject        : ${{ steps.meta.outputs.commit_subject }}
+          Commit date    : ${{ steps.meta.outputs.commit_date }}
+          Built by       : ${{ github.actor }}
+          Workflow run   : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Repository     : ${{ github.server_url }}/${{ github.repository }}
+          EOF
+          echo "--- BUILD_INFO.txt ---"
+          cat dist/BUILD_INFO.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FPSLocker-${{ steps.meta.outputs.short_sha }}
+          path: |
+            dist/FPSLocker.ovl
+            dist/BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 30

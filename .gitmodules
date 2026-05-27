@@ -1,0 +1,4 @@
+[submodule "libs/libryazhahand"]
+	path = libs/libryazhahand
+	url = https://github.com/dimasick-git/libryazhahand.git
+	branch = main
