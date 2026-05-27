@@ -154,6 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions:  write       # required for `gh workflow run` (workflow_dispatch)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,22 +174,30 @@ jobs:
           LATEST=$(gh release list --repo "${{ github.repository }}" --limit 5 --json tagName --jq '.[] | .tagName' | grep -E '^v[0-9]' | head -1 || echo "")
           echo "APP_VERSION=$APP_VERSION  ->  TAG=$TAG"
           echo "Latest release tag: $LATEST"
-          if [ "$TAG" = "$LATEST" ]; then
-            echo "Already released; nothing to do."
-            exit 0
-          fi
+
+          # If a release already exists for this tag — nothing to do.
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Tag $TAG already has a release; nothing to do."
+            echo "Release $TAG already exists; nothing to do."
             exit 0
           fi
+
           if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag exists but no release; pushing to (re-)trigger release.yml."
-            git push origin "$TAG" || true
+            # Tag already exists at origin — `git push origin $TAG` would be a
+            # no-op (ref unchanged), so no `push: tags` event fires and
+            # release.yml never triggers. Dispatch release.yml directly via
+            # workflow_dispatch instead.
+            echo "Tag $TAG exists but has no release — dispatching release.yml via workflow_dispatch."
+            gh workflow run release.yml \
+              --repo "${{ github.repository }}" \
+              --ref  "$TAG" \
+              -f tag="$TAG" \
+              -f prerelease=false
+            echo "Dispatched release.yml for $TAG."
           else
             git config user.name  'ryazhahand-release-bot'
             git config user.email 'ryazhahand-release-bot@users.noreply.github.com'
             git tag -a "$TAG" -m "Auto-tag on APP_VERSION change: $TAG"
             git push origin "$TAG"
-            echo "Pushed $TAG — release.yml will publish."
+            echo "Pushed brand-new $TAG — release.yml will pick it up via push:tags."
           fi
 
