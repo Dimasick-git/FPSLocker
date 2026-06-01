@@ -38,51 +38,32 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 APP_TITLE	:=	FPSLocker
-APP_VERSION	:=	3.3.3
+APP_VERSION	:=	3.3.2
 
 TARGET		:=	FPSLocker
 BUILD		:=	build
 SOURCES		:=	source source/c4 source/c4/yml source/asmjit/arm source/asmjit/core
 DATA		:=	data
-INCLUDES	:=	include source
-NO_ICON		:=  1
+INCLUDES	:=	include libs/libtesla/include source
 
-# Ryazhahand ecosystem: libryazhahand provides ryazhahand.mk
-# (with backwards-compatible fallback to ultrahand.mk if user pulled an older snapshot)
-ifneq ($(wildcard ${TOPDIR}/libs/libryazhahand/ryazhahand.mk),)
-include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
-else
-ifneq ($(wildcard ${TOPDIR}/libs/libryazhahand/ultrahand.mk),)
-include ${TOPDIR}/libs/libryazhahand/ultrahand.mk
-endif
-endif
+NO_ICON		:=  1
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH		:= -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE -flto=auto
 
-CFLAGS := -g -Wall -Os -ffunction-sections -fdata-sections -flto \
-          -fuse-linker-plugin -fomit-frame-pointer -finline-small-functions \
-          -fno-strict-aliasing -frename-registers -falign-functions=16 \
-          $(ARCH) $(DEFINES)
-
-# Enable appearance overriding
-UI_OVERRIDE_PATH := /config/fpslocker/
-CFLAGS += -DUI_OVERRIDE_PATH="\"$(UI_OVERRIDE_PATH)\""
-
-# Enable Widget
-USING_WIDGET_DIRECTIVE := 1
-CFLAGS += -DUSING_WIDGET_DIRECTIVE=$(USING_WIDGET_DIRECTIVE)
+CFLAGS		:= -g -Wall -O2 -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables \
+			$(ARCH) $(DEFINES)
 
 CFLAGS		+= $(INCLUDE) -D__SWITCH__ -DAPP_VERSION="\"$(APP_VERSION)\"" -DNDEBUG -DASMJIT_EMBED -DASMJIT_BUILD_RELEASE -DASMJIT_NO_X86 -DASMJIT_NO_DEPRECATED -DASMJIT_NO_ABI_NAMESPACE -DASMJIT_NO_JIT -DASMJIT_NO_LOGGING -DASMJIT_NO_VALIDATION
 
-CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++26 -Wno-dangling-else -ffast-math -fno-unwind-tables -fno-asynchronous-unwind-tables 
+CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++23
 
 ASFLAGS		:= -g $(ARCH)
 LDFLAGS		= -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,-wrap,__cxa_throw -Wl,-wrap,_Unwind_Resume -Wl,-wrap,__gxx_personality_v0
 
-LIBS		:= `curl-config --libs` -lpng -lz
+LIBS		:= `curl-config --libs`
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -207,8 +188,6 @@ all		: $(OUTPUT).ovl
 $(OUTPUT).ovl	: $(OUTPUT).elf $(OUTPUT).nacp 
 	@elf2nro $< $@ $(NROFLAGS)
 	@echo "built ... $(notdir $(OUTPUT).ovl)"
-	@printf 'RYZH' >> $@
-	@printf "Ryazhahand signature has been added.\n"
 
 $(OUTPUT).elf	: $(OFILES)
 
