@@ -80,6 +80,7 @@ const char* getTeslaStringID(std::size_t id) {
         default:
             return ENG::teslaStrings[id];
     }
+
 }
 
 uint8_t getNacpLanguage() {

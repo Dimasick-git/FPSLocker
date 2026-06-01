@@ -1,8 +1,8 @@
 #define TESLA_INIT_IMPL // If you have more than one file using the tesla header, only define this in the main one
 #include <tesla.hpp>    // The Tesla Header
-//#include "MiniList.hpp"
-//#include "NoteHeader.hpp"
-//#include "List.hpp"
+#include "MiniList.hpp"
+#include "NoteHeader.hpp"
+#include "List.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 #include "SaltyNX.h"
@@ -60,11 +60,14 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
+		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
+		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
+		auto frame = new tsl::elm::OverlayFrame(_titleidc, _titleName);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 
-		auto* clickableListItem = new tsl::elm::ListItem(getStringID(Lang::Id_DeleteSettings));
+		auto *clickableListItem = new tsl::elm::ListItem2(getStringID(Lang::Id_DeleteSettings));
 		clickableListItem->setClickListener([this](u64 keys) { 
 			if (keys & HidNpadButton_A) {
 				char path[512] = "";
@@ -95,7 +98,7 @@ public:
 
 		list->addItem(clickableListItem);
 
-		auto* clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_DeletePatches));
+		auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_DeletePatches));
 		clickableListItem2->setClickListener([this](u64 keys) { 
 			if (keys & HidNpadButton_A) {
 				char folder[640] = "";
@@ -148,13 +151,6 @@ public:
 
 		list->addItem(clickableListItem2);
 
-		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
-		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame(_titleidc, _titleName);
-		//#if USING_WIDGET_DIRECTIVE
-        //frame->m_showWidget = true;
-        //#endif
-
 		frame->setContent(list);
 
 		return frame;
@@ -172,6 +168,9 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
+		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
+		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
+		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
@@ -179,13 +178,13 @@ public:
 		if (oldSalty || !SaltySD) {
 			list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
 				if (!SaltySD) {
-					renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, (0xF33F));
+					renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, renderer->a(0xF33F));
 				}
 				else if (!plugin) {
-					renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, (0xF33F));
+					renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, renderer->a(0xF33F));
 				}
 				else if (!check) {
-					renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, (0xF33F));
+					renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, renderer->a(0xF33F));
 				}
 			}), 30);
 		}
@@ -193,7 +192,7 @@ public:
 		if (R_FAILED(rc)) {
 			char error[24] = "";
 			sprintf(error, "Err: 0x%x", rc);
-			auto* clickableListItem2 = new tsl::elm::ListItem(error);
+			auto *clickableListItem2 = new tsl::elm::ListItem2(error);
 			clickableListItem2->setClickListener([](u64 keys) { 
 				if (keys & HidNpadButton_A) {
 					return true;
@@ -204,12 +203,9 @@ public:
 			list->addItem(clickableListItem2);
 		}
 		else {
-    		list->addItem(new tsl::elm::CategoryHeader(getStringID(Lang::Id_GamesList)));
-
-			auto* clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_All));
-			clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+			auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_All));
+			clickableListItem3->setClickListener([](u64 keys) { 
 				if (keys & HidNpadButton_A) {
-					//tsl::shiftItemFocus(clickableListItem3);
 					tsl::changeTo<NoGameSub>(0x1234567890ABCDEF, getStringID(Lang::Id_Everything));
 					return true;
 				}
@@ -219,10 +215,9 @@ public:
 			list->addItem(clickableListItem3);
 			mutexLock(&TitlesAccess);
 			for (size_t i = 0; i < titles.size(); i++) {
-				auto* clickableListItem = new tsl::elm::ListItem(titles[i].TitleName);
-				clickableListItem->setClickListener([i, clickableListItem](u64 keys) { 
+				auto *clickableListItem = new tsl::elm::ListItem2(titles[i].TitleName);
+				clickableListItem->setClickListener([i](u64 keys) { 
 					if (keys & HidNpadButton_A) {
-						//tsl::shiftItemFocus(clickableListItem);
 						tsl::changeTo<NoGameSub>(titles[i].TitleID, titles[i].TitleName);
 						return true;
 					}
@@ -233,13 +228,6 @@ public:
 			}
 			mutexUnlock(&TitlesAccess);
 		}
-
-		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
-		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
-		#if USING_WIDGET_DIRECTIVE
-        frame->m_showWidget = true;
-        #endif
 
 		frame->setContent(list);
 
@@ -260,26 +248,28 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
+		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
+		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
+		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 
 		list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
 			if (!SaltySD) {
-				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, renderer->a(0xF33F));
 			}
 			else if (!plugin) {
-				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, renderer->a(0xF33F));
 			}
 			else if (!check) {
-				renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, renderer->a(0xF33F));
 			}
-		}), 33);
+		}), 30);
 
-		auto* clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_GamesList));
-		clickableListItem2->setClickListener([this, clickableListItem2](u64 keys) { 
+		auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_GamesList));
+		clickableListItem2->setClickListener([this](u64 keys) { 
 			if (keys & HidNpadButton_A) {
-				//tsl::shiftItemFocus(clickableListItem2);
 				tsl::changeTo<NoGame2>(this -> rc, 2, true);
 				return true;
 			}
@@ -288,10 +278,9 @@ public:
 
 		list->addItem(clickableListItem2);
 
-		auto* clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_DisplaySettings), "\uE151");
-		clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+		auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisplaySettings), "\uE151");
+		clickableListItem3->setClickListener([](u64 keys) { 
 			if (keys & HidNpadButton_A) {
-				//tsl::shiftItemFocus(clickableListItem3);
 				tsl::changeTo<WarningDisplayGui>();
 				return true;
 			}
@@ -300,7 +289,7 @@ public:
 
 		list->addItem(clickableListItem3);
 
-		auto* clickableListItem4 = new tsl::elm::ToggleListItem(getStringID(Lang::Id_ForceEnglishLanguage), forceEnglishLanguage);
+		auto *clickableListItem4 = new tsl::elm::ToggleListItem(getStringID(Lang::Id_ForceEnglishLanguage), forceEnglishLanguage);
 		clickableListItem4->setClickListener([](u64 keys) { 
 			if (keys & HidNpadButton_A) {
 				setForceEnglishLanguage(!forceEnglishLanguage);
@@ -313,12 +302,6 @@ public:
 
 		list->addItem(clickableListItem4);
 
-		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
-		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
-		#if USING_WIDGET_DIRECTIVE
-        frame->m_showWidget = true;
-        #endif
 
 		frame->setContent(list);
 
@@ -371,6 +354,9 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
+		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
+		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
+		auto frame = new tsl::elm::OverlayFrame("FPSLocker", getStringID(9));
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
@@ -380,7 +366,7 @@ public:
 				char FPS[] = "254";
 				snprintf(FPS, sizeof(FPS), "%d", AllowedFPSTargets[i]);
 				if (selected == i) {
-					auto new_pos = renderer->drawString(FPS, false, x+40, y+60, 40, (0x0000));
+					auto new_pos = renderer->drawString(FPS, false, x+40, y+60, 40, renderer->a(0x0000));
 					auto offset_x = (60 - new_pos.first) / 2;
 					if (AllowedFPSTargets[i] >= 100) offset_x = (80 - new_pos.first) / 2;
 					float progress = (std::sin(counter) + 1) / 2;
@@ -394,17 +380,9 @@ public:
 					if (AllowedFPSTargets[i] < 100) renderer->drawRect((x+((80 * (i % 4)) + 20) - offset_x), (y+((80*(i / 4))+5))+56, 56, 4, a(highlightColor));
 					else renderer->drawRect((x+((80 * (i % 4)) + 20) - offset_x), (y+((80*(i / 4))+5))+56, 80, 4, a(highlightColor));
 				}
-				renderer->drawString(FPS, false, x+((80 * (i % 4)) + 20), y+((80*(i / 4))+50), 40, (0xFFFF));
+				renderer->drawString(FPS, false, x+((80 * (i % 4)) + 20), y+((80*(i / 4))+50), 40, renderer->a(0xFFFF));
 			}
 		}), 480);
-
-
-		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
-		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("FPSLocker", getStringID(9));
-		#if USING_WIDGET_DIRECTIVE
-        frame->m_showWidget = true;
-        #endif
 
 		frame->setContent(list);
 
@@ -433,22 +411,12 @@ public:
 			return true;
 		}
 		counter += 0.1f;
-
-		static auto lastSelected = selected;
-
 		if (keysDown & HidNpadButton_Down) {
 			if ((selected / 4) < (sizeofAllowedFPSTargets / 4)) 
 				selected += 4;
 			else selected = selected % 4;
 			if (selected >= sizeofAllowedFPSTargets)
 				selected = sizeofAllowedFPSTargets - 1;
-
-			if (selected != lastSelected) 
-				triggerNavigationFeedback();
-			else {
-				triggerWallFeedback();
-			}
-			lastSelected = selected;
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Up) {
@@ -457,13 +425,6 @@ public:
 			else selected = ((sizeofAllowedFPSTargets / 4) * 4) + (selected % 4);
 			if (selected >= sizeofAllowedFPSTargets)
 				selected = sizeofAllowedFPSTargets - 1;	
-
-			if (selected != lastSelected) 
-				triggerNavigationFeedback();
-			else {
-				triggerWallFeedback();
-			}
-			lastSelected = selected;
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Right) {
@@ -474,13 +435,6 @@ public:
 			}
 			if (selected >= sizeofAllowedFPSTargets)
 				selected = (sizeofAllowedFPSTargets / 4) * 4;
-
-			if (selected != lastSelected) 
-				triggerNavigationFeedback();
-			else {
-				triggerWallFeedback();
-			}
-			lastSelected = selected;
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Left) {
@@ -491,13 +445,6 @@ public:
 			}
 			if (selected >= sizeofAllowedFPSTargets)
 				selected = sizeofAllowedFPSTargets - 1;
-
-			if (selected != lastSelected) 
-				triggerNavigationFeedback();
-			else {
-				triggerWallFeedback();
-			}
-			lastSelected = selected;
 			return true;
 		}
 
@@ -541,7 +488,6 @@ public:
 			}
 			saveSettings();
 			tsl::goBack();
-			triggerEnterFeedback();
 			return true;
 		}			
 		return false;   // Return true here to singal the inputs have been consumed
@@ -577,50 +523,53 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
+		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
+		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
+		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 		
 		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
 			if (!SaltySD) {
-				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+50, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+50, 20, renderer->a(0xF33F));
 			}
 			else if (!plugin) {
-				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+50, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+50, 20, renderer->a(0xF33F));
 			}
 			else if (!check) {
 				if (closed) {
-					renderer->drawString(getStringID(Lang::Id_GameWasClosedOverlayDisabled), false, x, y+20, 19, (0xF33F));
-					renderer->drawString(getStringID(Lang::Id_RestartOverlayToCheckAgain), false, x, y+70, 20, (0xFFFF));
+					renderer->drawString(getStringID(Lang::Id_GameWasClosedOverlayDisabled), false, x, y+20, 19, renderer->a(0xF33F));
+					renderer->drawString(getStringID(Lang::Id_RestartOverlayToCheckAgain), false, x, y+70, 20, renderer->a(0xFFFF));
 				}
 				else {
-					renderer->drawString(getStringID(Lang::Id_GameIsNotRunningOverlayDisabled), false, x, y+20, 19, (0xF33F));
+					renderer->drawString(getStringID(Lang::Id_GameIsNotRunningOverlayDisabled), false, x, y+20, 19, renderer->a(0xF33F));
 				}
 			}
 			else if (!PluginRunning) {
-				renderer->drawString(getStringID(Lang::Id_GameIsRunning), false, x, y+20, 20, (0xFFFF));
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsNotRunning), false, x, y+70, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_GameIsRunning), false, x, y+20, 20, renderer->a(0xFFFF));
+				renderer->drawString(getStringID(Lang::Id_NXFPSIsNotRunning), false, x, y+70, 20, renderer->a(0xF33F));
 			}
 			else if (!(Shared -> pluginActive)) {
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunningWaitingForFrame), false, x, y+20, 20, (0xF33F));
+				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunningWaitingForFrame), false, x, y+20, 20, renderer->a(0xF33F));
 			}
 			else {
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunning), false, x, y+20, 20, (0xFFFF));
+				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunning), false, x, y+20, 20, renderer->a(0xFFFF));
 				if (((Shared -> API) > 0) && ((Shared -> API) <= 2))
-					renderer->drawString(FPSMode_c, false, x, y+43, 20, (0xFFFF));
-				renderer->drawString(FPSTarget_c, false, x, y+86, 20, (0xFFFF));
-				if (render100Above) renderer->drawString(PFPS_c, false, x+265, y+48, 50, (0xFFFF));
-				else renderer->drawString(PFPS_c, false, x+290, y+48, 50, (0xFFFF));
-				renderer->drawString("FPS", false, x+320, y+70, 20, (0xFFFF));
-				if (Shared -> forceOriginalRefreshRate) renderer->drawString(getStringID(Lang::Id_PatchIsNotForcing60Hz), false, x, y+129, 20, (0xF99F));
-				else if (noPatchDetectedButNeeded) renderer->drawString(getStringID(Lang::Id_PatchFileDoesntExist), false, x, y+129, 20, (0xF99F));
+					renderer->drawString(FPSMode_c, false, x, y+43, 20, renderer->a(0xFFFF));
+				renderer->drawString(FPSTarget_c, false, x, y+86, 20, renderer->a(0xFFFF));
+				if (render100Above) renderer->drawString(PFPS_c, false, x+265, y+48, 50, renderer->a(0xFFFF));
+				else renderer->drawString(PFPS_c, false, x+290, y+48, 50, renderer->a(0xFFFF));
+				renderer->drawString("FPS", false, x+320, y+70, 20, renderer->a(0xFFFF));
+				if (Shared -> forceOriginalRefreshRate) renderer->drawString(getStringID(Lang::Id_PatchIsNotForcing60Hz), false, x, y+129, 20, renderer->a(0xF99F));
+				else if (noPatchDetectedButNeeded) renderer->drawString(getStringID(Lang::Id_PatchFileDoesntExist), false, x, y+129, 20, renderer->a(0xF99F));
 			}
 		}), 170);
 
 		if (PluginRunning && (Shared -> pluginActive)) {
 			pluginRanAtBoot = true;
 			if (entry_mode == ApmPerformanceMode_Normal) {
-				auto* clickableListItem = new tsl::elm::ListItem(getStringID(Lang::Id_IncreaseFPSTarget));
+				auto *clickableListItem = new tsl::elm::ListItem2(getStringID(Lang::Id_IncreaseFPSTarget));
 				clickableListItem->setClickListener([](u64 keys) { 
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						if ((Shared -> FPSmode) == 2 && !(Shared -> FPSlocked)) {
@@ -670,7 +619,7 @@ public:
 
 				list->addItem(clickableListItem);
 				
-				auto* clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_DecreaseFPSTarget));
+				auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_DecreaseFPSTarget));
 				clickableListItem2->setClickListener([](u64 keys) { 
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						if ((Shared -> FPSmode) < 2 && !(Shared -> FPSlocked)) {
@@ -720,10 +669,9 @@ public:
 				list->addItem(clickableListItem2);
 			}
 			else if (entry_mode == ApmPerformanceMode_Boost) {
-				auto* clickableListItem2 = new tsl::elm::ListItem(getStringID(Lang::Id_ChangeFPSTarget));
-				clickableListItem2->setClickListener([clickableListItem2](u64 keys) { 
+				auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_ChangeFPSTarget));
+				clickableListItem2->setClickListener([](u64 keys) { 
 					if ((keys & HidNpadButton_A) && PluginRunning) {
-						//tsl::shiftItemFocus(clickableListItem2);
 						tsl::changeTo<DockedFPSTargetGui>();
 						return true;
 					}
@@ -732,7 +680,7 @@ public:
 				list->addItem(clickableListItem2);			
 			}
 
-			auto* clickableListItem4 = new tsl::elm::ListItem(getStringID(Lang::Id_DisableCustomFPSTarget));
+			auto *clickableListItem4 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisableCustomFPSTarget));
 			clickableListItem4->setClickListener([this](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning) {
 					if (entry_mode == ApmPerformanceMode_Normal && (Shared -> FPSlocked)) {
@@ -756,10 +704,9 @@ public:
 			});
 			list->addItem(clickableListItem4);
 
-			auto* clickableListItem3 = new tsl::elm::ListItem(getStringID(Lang::Id_AdvancedSettings));
-			clickableListItem3->setClickListener([clickableListItem3](u64 keys) { 
+			auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_AdvancedSettings));
+			clickableListItem3->setClickListener([](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning) {
-					//tsl::shiftItemFocus(clickableListItem3);
 					tsl::changeTo<AdvancedGui>();
 					return true;
 				}
@@ -769,10 +716,9 @@ public:
 		}
 
 		if (SaltySD) {
-			auto* clickableListItem6 = new tsl::elm::ListItem(getStringID(Lang::Id_DisplaySettings), "\uE151");
-			clickableListItem6->setClickListener([clickableListItem6](u64 keys) { 
+			auto *clickableListItem6 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisplaySettings), "\uE151");
+			clickableListItem6->setClickListener([](u64 keys) { 
 				if (keys & HidNpadButton_A) {
-					//tsl::shiftItemFocus(clickableListItem6);
 					tsl::changeTo<WarningDisplayGui>();
 					return true;
 				}
@@ -780,13 +726,6 @@ public:
 			});
 			list->addItem(clickableListItem6);
 		}
-
-		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
-		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
-		#if USING_WIDGET_DIRECTIVE
-        frame->m_showWidget = true;
-        #endif
 
 		// Add the list to the frame for it to be drawn
 		frame->setContent(list);
@@ -840,26 +779,27 @@ public:
 				apmExit();
 				if (mode != entry_mode) {
 					smExit();
-					//tsl::goBack();
-					tsl::swapTo<GuiTest>(0, 1, true);
+					tsl::goBack();
+					tsl::changeTo<GuiTest>(0, 1, true);
 					return true;
 				}
 			}
 			smExit();
 		}
 		if (PluginRunning && (Shared -> pluginActive) && !pluginRanAtBoot) {
-			//tsl::goBack();
-			tsl::swapTo<GuiTest>(0, 1, true);
+			tsl::goBack();
+			tsl::changeTo<GuiTest>(0, 1, true);
 			return true;
 		}
 		if (SaltySD && plugin && closed && !blocked) {
 			blocked = true;
-			//tsl::goBack();
-			tsl::swapTo<GuiTest>(0, 1, true);
+			tsl::goBack();
+			tsl::changeTo<GuiTest>(0, 1, true);
 			return true;
 		}
 		if (keysDown & HidNpadButton_B) {
-			tsl::goBack(2);
+			tsl::goBack();
+			tsl::goBack();
 			return true;
 		}
 		return false;   // Return true here to singal the inputs have been consumed
@@ -874,9 +814,6 @@ public:
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
 		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
-		#if USING_WIDGET_DIRECTIVE
-        frame->m_showWidget = true;
-        #endif
 		return frame;
 	}
 
@@ -917,10 +854,10 @@ public:
 			}
 
 			
-			//tsl::elm::buttons = "\uE0E1  ";
-			//tsl::elm::buttons += getTeslaStringID(0);
-			//tsl::elm::buttons += "    \uE0E0  ";
-			//tsl::elm::buttons += getTeslaStringID(1);
+			tsl::elm::buttons = "\uE0E1  ";
+			tsl::elm::buttons += getTeslaStringID(0);
+			tsl::elm::buttons += "    \uE0E0  ";
+			tsl::elm::buttons += getTeslaStringID(1);
 			
 			fsdevMountSdmc();
 			if (file_exists("sdmc:/SaltySD/flags/displaysync.flag")) {
