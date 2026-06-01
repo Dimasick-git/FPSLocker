@@ -2210,11 +2210,9 @@ static ASMJIT_FAVOR_SIZE void detectARMCpu(CpuInfo& cpu) noexcept {
 
 #else
 
-#if ASMJIT_ARCH_ARM == 32
-  #pragma message("[asmjit] Disabling runtime CPU detection - unsupported OS/CPU combination (Unknown OS with AArch32 CPU)")
-#else
-  #pragma message("[asmjit] Disabling runtime CPU detection - unsupported OS/CPU combination (Unknown OS with AArch64 CPU)")
-#endif
+// [Ryazhenka] Silenced asmjit's #pragma message about disabled runtime CPU
+// detection — on Nintendo Switch (libnx, "unknown" OS) we never need runtime
+// detection, so the fallback path using compiler flags is the intended one.
 
 static ASMJIT_FAVOR_SIZE void detectARMCpu(CpuInfo& cpu) noexcept {
   populateBaseARMFeatures(cpu);
