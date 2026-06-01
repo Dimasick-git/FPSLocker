@@ -41,6 +41,23 @@
 7. **Commit + push** на ветку `sync/upstream-...`.
 8. **Open PR** в `target_branch` (если есть диф).
 
+## Если PR не создаётся (`Permission denied`)
+
+`GITHUB_TOKEN` по умолчанию в репозитории **не** имеет прав создавать PR. Если в логе sync-workflow вы видите:
+
+```
+GitHub Actions is not permitted to create or approve pull requests. (403)
+```
+
+Это надо включить **один раз** в настройках репозитория:
+
+> **Settings → Actions → General → Workflow permissions →** галочка
+> **«Allow GitHub Actions to create and approve pull requests»** → Save.
+
+После этого следующий запуск sync-workflow откроет PR автоматически.
+
+До тех пор workflow не падает — он пушит sync-ветку на `origin`, в Summary запуска оставляет ссылку вида `…/compare/main...sync/upstream-…?expand=1`, и PR можно открыть в один клик руками. Если PR на эту ветку уже открыт — workflow ничего не делает.
+
 ## Защищённые пути
 
 Список — `scripts/protected_paths.txt`:

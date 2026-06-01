@@ -128,29 +128,74 @@ jobs:
             const target = process.env.TARGET_BRANCH;
             const upstream = process.env.UPSTREAM_REPO;
             const upstreamBranch = process.env.UPSTREAM_BRANCH;
+            const compareUrl =
+              `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+              `/compare/${target}...${branch}?expand=1`;
+
+            const title = `sync: pull upstream ${upstream}@${upstreamBranch}`;
+            const body = [
+              `Automated upstream sync from \`${upstream}\` (branch \`${upstreamBranch}\`).`,
+              ``,
+              `Steps executed:`,
+              `1. Merged \`upstream/${upstreamBranch}\` with \`-X theirs\`.`,
+              `2. Restored protected Ryazhenka files via \`scripts/restore_protected.sh\`.`,
+              `3. Re-applied transformations via \`scripts/apply_ryazhenka_patches.sh\`.`,
+              ``,
+              `**Review carefully** — source/header changes from upstream may need manual adaptation`,
+              `to the \`libryazhahand\` API surface.`,
+            ].join("\n");
+
+            async function summary(state, extraLine) {
+              const lines = [
+                `## ${state}`,
+                ``,
+                `- Sync branch: \`${branch}\` (already pushed to \`origin\`)`,
+                `- Target branch: \`${target}\``,
+                `- Upstream: \`${upstream}@${upstreamBranch}\``,
+                `- Manual PR link: ${compareUrl}`,
+              ];
+              if (extraLine) lines.push("", extraLine);
+              await core.summary.addRaw(lines.join("\n")).write();
+            }
+
+            // If a PR for this branch already exists, do nothing.
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               head:  `${context.repo.owner}:${branch}`,
               state: "open",
             });
-            if (prs.length === 0) {
-              await github.rest.pulls.create({
+            if (prs.length > 0) {
+              core.info(`PR already open: ${prs[0].html_url}`);
+              await summary("Sync ready — PR already open", `Existing PR: ${prs[0].html_url}`);
+              return;
+            }
+
+            try {
+              const { data: pr } = await github.rest.pulls.create({
                 owner: context.repo.owner,
                 repo:  context.repo.repo,
                 head:  branch,
                 base:  target,
-                title: `sync: pull upstream ${upstream}@${upstreamBranch}`,
-                body: [
-                  `Automated upstream sync from \`${upstream}\` (branch \`${upstreamBranch}\`).`,
-                  ``,
-                  `Steps executed:`,
-                  `1. Merged \`upstream/${upstreamBranch}\` with \`-X theirs\`.`,
-                  `2. Restored protected Ryazhenka files via \`scripts/restore_protected.sh\`.`,
-                  `3. Re-applied transformations via \`scripts/apply_ryazhenka_patches.sh\`.`,
-                  ``,
-                  `**Review carefully** — source/header changes from upstream may need manual adaptation`,
-                  `to the \`libryazhahand\` API surface.`,
-                ].join("\n"),
+                title,
+                body,
               });
+              core.info(`Created PR ${pr.html_url}`);
+              await summary("Sync PR opened", `New PR: ${pr.html_url}`);
+            } catch (err) {
+              const blocked =
+                err.status === 403 &&
+                /not permitted to create or approve pull requests/i.test(err.message || "");
+              if (!blocked) throw err;
+
+              const note =
+                `> :warning: \`GITHUB_TOKEN\` cannot create PRs in this repository.\n` +
+                `> Open one manually via the link above, or enable the setting in:\n` +
+                `> **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"**.`;
+              core.warning(
+                "GITHUB_TOKEN is not permitted to create PRs. The sync branch was pushed; " +
+                  "open the PR manually via " + compareUrl
+              );
+              await summary("Sync branch pushed — PR not opened (token has no PR-create permission)", note);
+              // Do NOT fail the workflow — the branch is already on origin and reviewable.
             }
