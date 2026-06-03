@@ -35,7 +35,7 @@ namespace tsl {
                     }
 
                     auto [width, height] = renderer->drawString(this->m_text.c_str(), false, 0, 0, 23, tsl::style::color::ColorTransparent);
-                    this->m_trunctuated = width > this->m_maxWidth;
+                    this->m_trunctuated = u32(width) > this->m_maxWidth;
 
                     if (this->m_trunctuated) {
                         this->m_scrollText = this->m_text + "        ";
@@ -130,29 +130,27 @@ namespace tsl {
                 s32 x = 0, y = 0;
 
                 if (this->m_highlightShaking) {
-                    auto t = (std::chrono::system_clock::now() - this->m_highlightShakingStartTime);
-                    if (t >= 100ms)
+                    // libryazhahand stores m_highlightShakingStartTime as u64 nanoseconds
+                    // (set via ult::nowNs()), not as a chrono::time_point.  Mirror that
+                    // here instead of pulling in masa's chrono-based shakeAnimation().
+                    const u64 currentTime_ns = armTicksToNs(armGetSystemTick());
+                    const u64 elapsed_ns     = currentTime_ns - this->m_highlightShakingStartTime;
+                    static constexpr u64 SHAKE_DURATION_NS = 100ULL * 1000ULL * 1000ULL; // 100 ms
+                    if (elapsed_ns >= SHAKE_DURATION_NS) {
                         this->m_highlightShaking = false;
-                    else {
-                        s32 amplitude = std::rand() % 5 + 5;
-
+                    } else {
+                        const s32 amplitude = (std::rand() % 5) + 5;
+                        const float progress = float(elapsed_ns) / float(SHAKE_DURATION_NS);
+                        // Damped sinusoidal shake — matches the visual of masa's
+                        // shakeAnimation(t, amplitude) closely enough.
+                        const s32 offset = s32(float(amplitude) * std::sin(progress * 3.14159265f * 2.0f) * (1.0f - progress));
                         switch (this->m_highlightShakingDirection) {
-                            case FocusDirection::Up:
-                                y -= shakeAnimation(t, amplitude);
-                                break;
-                            case FocusDirection::Down:
-                                y += shakeAnimation(t, amplitude);
-                                break;
-                            case FocusDirection::Left:
-                                x -= shakeAnimation(t, amplitude);
-                                break;
-                            case FocusDirection::Right:
-                                x += shakeAnimation(t, amplitude);
-                                break;
-                            default:
-                                break;
+                            case FocusDirection::Up:    y -= offset; break;
+                            case FocusDirection::Down:  y += offset; break;
+                            case FocusDirection::Left:  x -= offset; break;
+                            case FocusDirection::Right: x += offset; break;
+                            default: break;
                         }
-
                         x = std::clamp(x, -amplitude, amplitude);
                         y = std::clamp(y, -amplitude, amplitude);
                     }

@@ -1,6 +1,8 @@
 #define TESLA_INIT_IMPL // If you have more than one file using the tesla header, only define this in the main one
 #include <tesla.hpp>    // The Tesla Header
-#include "MiniList.hpp"
+// MiniList.hpp removed — libryazhahand's tesla.hpp ships tsl::elm::MiniListItem
+// and tsl::elm::MiniToggleListItem natively (the legacy masa libtesla replacements
+// here would cause redefinition errors).
 #include "NoteHeader.hpp"
 #include "List.hpp"
 #include <sys/stat.h>
@@ -853,12 +855,9 @@ public:
 				setExit();
 			}
 
-			
-			tsl::elm::buttons = "\uE0E1  ";
-			tsl::elm::buttons += getTeslaStringID(0);
-			tsl::elm::buttons += "    \uE0E0  ";
-			tsl::elm::buttons += getTeslaStringID(1);
-			
+			// libryazhahand renders the localized bottom-bar (\uE0E1 back / \uE0E0 select)
+			// itself inside OverlayFrame::draw(), so masa's manual tsl::elm::buttons override
+			// is dropped here \u2014 there's no such global in libryazhahand's tsl::elm.
 			fsdevMountSdmc();
 			if (file_exists("sdmc:/SaltySD/flags/displaysync.flag")) {
 				displaySync.ds.handheld = true;
