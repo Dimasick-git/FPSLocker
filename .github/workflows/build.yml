@@ -27,7 +27,7 @@ jobs:
       image: devkitpro/devkita64:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
@@ -138,7 +138,7 @@ jobs:
           cat dist/BUILD_INFO.txt
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FPSLocker-${{ steps.meta.outputs.short_sha }}
           path: |
@@ -156,7 +156,7 @@ jobs:
       contents: write
       actions:  write       # required for `gh workflow run` (workflow_dispatch)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -194,8 +194,8 @@ jobs:
               -f prerelease=false
             echo "Dispatched release.yml for $TAG."
           else
-            git config user.name  'ryazhahand-release-bot'
-            git config user.email 'ryazhahand-release-bot@users.noreply.github.com'
+            git config user.name  'Dimasick-git'
+            git config user.email 'dimaorynchukk@gmail.com'
             git tag -a "$TAG" -m "Auto-tag on APP_VERSION change: $TAG"
             git push origin "$TAG"
             echo "Pushed brand-new $TAG — release.yml will pick it up via push:tags."
