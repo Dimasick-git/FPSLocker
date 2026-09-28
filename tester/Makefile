@@ -11,10 +11,14 @@ CXX = g++
 SRC_DIR = source
 # Set the directory where built object files will go
 BUILD_DIR = build
+# Build directory of the AArch32 validator (same sources, SaltyNX runtime built with LOCK_ABI32)
+BUILD_DIR32 = build32
 
 # --- Target ---
 # Set the name of your final executable
 TARGET = my_program
+# AArch32 validator - my_program forwards patches with asm_a32 entries to it
+TARGET32 = my_program32
 
 # --- Flags ---
 # -I$(SRC_DIR): Tell GCC to look for headers in the source directory
@@ -26,17 +30,17 @@ INCLUDE_FLAGS = -I$(SRC_DIR)
 # -Wextra:    Enables even more warnings
 # -MMD -MP:   Generates dependency files (.d) for header tracking
 DEP_FLAGS = -MMD -MP
-COMMON_FLAGS = -g -Wall -Wextra $(DEP_FLAGS) $(INCLUDE_FLAGS) -DNDEBUG -DASMJIT_EMBED -DASMJIT_BUILD_RELEASE -DASMJIT_NO_X86 -DASMJIT_NO_DEPRECATED -DASMJIT_NO_ABI_NAMESPACE -DASMJIT_NO_JIT -DASMJIT_NO_LOGGING -DASMJIT_NO_VALIDATION
+COMMON_FLAGS = -g -Wall -Wextra $(DEP_FLAGS) $(INCLUDE_FLAGS) -DHOST_BUILD -DNDEBUG -DASMJIT_EMBED -DASMJIT_BUILD_RELEASE -DASMJIT_NO_X86 -DASMJIT_NO_DEPRECATED -DASMJIT_NO_ABI_NAMESPACE -DASMJIT_NO_JIT -DASMJIT_NO_LOGGING -DASMJIT_NO_VALIDATION
 
 # Flags for C compilation
-CFLAGS = -std=c23 $(COMMON_FLAGS)
+CFLAGS = -std=gnu17 $(COMMON_FLAGS)
 
 # Flags for C++ compilation
 CXXFLAGS = -std=c++23 $(COMMON_FLAGS)
 
 # --- Linker Flags ---
 LDFLAGS =
-LDLIBS =
+LDLIBS = -lm
 
 # =============================================================================
 # File Discovery (Recursive)
@@ -58,15 +62,18 @@ OBJS_CXX += $(patsubst $(SRC_DIR)/%.cc,$(BUILD_DIR)/%.o,$(filter %.cc, $(SRCS_CX
 # Combine all object files
 OBJS := $(OBJS_C) $(OBJS_CXX)
 
+# The same objects for the AArch32 validator
+OBJS32 := $(patsubst $(BUILD_DIR)/%,$(BUILD_DIR32)/%,$(OBJS))
+
 # Generate dependency file names (e.g., "build/utils/math.o" becomes "build/utils/math.d")
-DEPS := $(OBJS:%.o=%.d)
+DEPS := $(OBJS:%.o=%.d) $(OBJS32:%.o=%.d)
 
 # =============================================================================
 # Main Targets
 # =============================================================================
 
 # The default target, called when you just type "make"
-all: $(TARGET)
+all: $(TARGET) $(TARGET32)
 # Rule to link the final executable
 # We use $(CXX) (g++) for linking to ensure C++ libraries are included
 
@@ -75,13 +82,18 @@ $(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	@echo "==> Build complete: $(TARGET)"
 
+$(TARGET32): $(OBJS32)
+	@echo "==> Linking $@"
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "==> Build complete: $(TARGET32)"
+
 # Phony targets don't represent files
 .PHONY: all clean
 
 # Rule to clean up build files (removes the entire build dir and the target)
 clean:
 	@echo "==> Cleaning all built files"
-	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -rf $(BUILD_DIR) $(BUILD_DIR32) $(TARGET) $(TARGET32)
 
 # =============================================================================
 # Compilation Rules
@@ -112,6 +124,27 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cc
 	@mkdir -p $(dir $@)
 	@echo "==> Compiling C++: $<"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# --- AArch32 validator (HOST_ABI32 makes SaltyNX runtime use LOCK_ABI32) ---
+$(BUILD_DIR32)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@echo "==> Compiling C (A32): $<"
+	$(CC) $(CFLAGS) -DHOST_ABI32 -c $< -o $@
+
+$(BUILD_DIR32)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@echo "==> Compiling C++ (A32): $<"
+	$(CXX) $(CXXFLAGS) -DHOST_ABI32 -c $< -o $@
+
+$(BUILD_DIR32)/%.o: $(SRC_DIR)/%.cxx
+	@mkdir -p $(dir $@)
+	@echo "==> Compiling C++ (A32): $<"
+	$(CXX) $(CXXFLAGS) -DHOST_ABI32 -c $< -o $@
+
+$(BUILD_DIR32)/%.o: $(SRC_DIR)/%.cc
+	@mkdir -p $(dir $@)
+	@echo "==> Compiling C++ (A32): $<"
+	$(CXX) $(CXXFLAGS) -DHOST_ABI32 -c $< -o $@
 
 # =============================================================================
 # Dependency Inclusion
