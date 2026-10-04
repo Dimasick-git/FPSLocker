@@ -68,6 +68,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Check GUI callback lifetime with ASan and UBSan
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer libs/libryazhahand/tests/gui_stack.cpp -o /tmp/gui-stack-test
+          /tmp/gui-stack-test
       - name: Build upstream patch validators
         env:
           SALTYNX_REF: '2.1.1'

@@ -179,8 +179,7 @@ public:
 				}
 				SaveDockedModeAllowedSave(rr, as, height == 720);
 
-				tsl::goBack();
-				tsl::changeTo<DockedManualGui>(highestRefreshRate);
+				tsl::swapTo<DockedManualGui>(highestRefreshRate);
 				return true;
 			}
 			if (svcGetSystemTick() - tick < (15 * systemtickfrequency)) {
@@ -359,8 +358,7 @@ public:
 					SaltySD_Term();
 				}
 				SaveDockedModeAllowedSave(rr, as, height == 720);
-				tsl::goBack();
-				tsl::changeTo<DockedManualGui>(m_maxRefreshRate);
+				tsl::swapTo<DockedManualGui>(m_maxRefreshRate);
 				return true;
 			}
 			if (svcGetSystemTick() - tick < (delay_s * systemtickfrequency)) {
@@ -742,8 +740,7 @@ public:
 			s32 height_impl = 0;
 			if (R_SUCCEEDED(fpslockerOmmGetDefaultDisplayResolution(&width, &height_impl))) {
 				if (height != height_impl) {
-					tsl::goBack();
-					tsl::changeTo<DockedGui>();
+					tsl::swapTo<DockedGui>();
 					return true;
 				}
 			}
@@ -753,8 +750,7 @@ public:
 				apmGetPerformanceMode(&mode);
 				apmExit();
 				if (mode != ApmPerformanceMode_Boost) {
-					tsl::goBack();
-					tsl::changeTo<DockedGui>();
+					tsl::swapTo<DockedGui>();
 					return true;
 				}
 			}
@@ -958,8 +954,7 @@ public:
 						displaySync.ds.handheld = !displaySync.ds.handheld;
 					}
 					if (entry_mode == ApmPerformanceMode_Normal) {
-						tsl::goBack();
-						tsl::changeTo<DisplayGui>();
+						tsl::swapTo<DisplayGui>();
 					}
 					return true;
 				}
@@ -998,8 +993,7 @@ public:
 							displaySync.ds.docked = !displaySync.ds.docked;
 						}
 					if (entry_mode == ApmPerformanceMode_Boost) {
-						tsl::goBack();
-						tsl::changeTo<DisplayGui>();
+						tsl::swapTo<DisplayGui>();
 					}
 						return true;
 					}
@@ -1083,8 +1077,7 @@ public:
 				apmExit();
 				if (mode != entry_mode) {
 					smExit();
-					tsl::goBack();
-					tsl::changeTo<DisplayGui>();
+					tsl::swapTo<DisplayGui>();
 					return true;
 				}
 			}
@@ -1126,8 +1119,7 @@ public:
 		auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_Accept));
 		clickableListItem2->setClickListener([this](u64 keys) {
 			if ((keys & HidNpadButton_A)) {
-				tsl::goBack();
-				tsl::changeTo<DisplayGui>();
+				tsl::swapTo<DisplayGui>();
 				return true;
 			}
 			return false;

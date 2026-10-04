@@ -752,48 +752,26 @@ public:
 				apmExit();
 				if (mode != entry_mode) {
 					smExit();
-					tsl::goBack();
-					tsl::changeTo<GuiTest>(0, 1, true);
+					tsl::swapTo<GuiTest>(0, 1, true);
 					return true;
 				}
 			}
 			smExit();
 		}
 		if (PluginRunning && (Shared -> pluginActive) && !pluginRanAtBoot) {
-			tsl::goBack();
-			tsl::changeTo<GuiTest>(0, 1, true);
+			tsl::swapTo<GuiTest>(0, 1, true);
 			return true;
 		}
 		if (SaltySD && plugin && closed && !blocked) {
 			blocked = true;
-			tsl::goBack();
-			tsl::changeTo<GuiTest>(0, 1, true);
+			tsl::swapTo<GuiTest>(0, 1, true);
 			return true;
 		}
 		if (keysDown & HidNpadButton_B) {
-			tsl::goBack();
-			tsl::goBack();
+			tsl::goBack(2);
 			return true;
 		}
 		return false;   // Return true here to singal the inputs have been consumed
-	}
-};
-
-class Dummy : public tsl::Gui {
-public:
-	Dummy(u8 arg1, u8 arg2, bool arg3) {}
-
-	// Called when this Gui gets loaded to create the UI
-	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
-	virtual tsl::elm::Element* createUI() override {
-		auto frame = new tsl::elm::OverlayFrame("FPSLocker", APP_VERSION);
-		return frame;
-	}
-
-	// Called once every frame to handle inputs not handled by other UI elements
-	virtual bool handleInput(u64 keysDown, u64 keysHeld, const HidTouchState &touchPos, HidAnalogStickState joyStickPosLeft, HidAnalogStickState joyStickPosRight) override {
-		tsl::changeTo<GuiTest>(0, 1, true);
-		return true;   // Return true here to singal the inputs have been consumed
 	}
 };
 
@@ -906,7 +884,7 @@ public:
 
 	virtual std::unique_ptr<tsl::Gui> loadInitialGui() override {
 		if (SaltySD && check && plugin) {
-			return initially<Dummy>(1, 2, true);  // Initial Gui to load. It's possible to pass arguments to it's constructor like this
+			return initially<GuiTest>(0, 1, true);  // Initial Gui to load. It's possible to pass arguments to it's constructor like this
 		}
 		else {
 			mutexInit(&TitlesAccess);

@@ -14,8 +14,7 @@ public:
 				SetBuffers_save = 2;
 				if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 2;
 				saveSettings();
-				tsl::goBack();
-				tsl::goBack();
+				tsl::goBack(2);
 				return true;
 			}
 			return false;
@@ -29,8 +28,7 @@ public:
 					SetBuffers_save = 3;
 					if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
 					saveSettings();
-					tsl::goBack();
-					tsl::goBack();
+					tsl::goBack(2);
 					return true;
 				}
 				return false;
@@ -47,8 +45,7 @@ public:
 						SetBuffers_save = 3;
 						if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
 						saveSettings();
-						tsl::goBack();
-						tsl::goBack();
+						tsl::goBack(2);
 						return true;
 					}
 					return false;
@@ -63,8 +60,7 @@ public:
 							else SetBuffers_save = 0;
 							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 3;
 							saveSettings();
-							tsl::goBack();
-							tsl::goBack();
+							tsl::goBack(2);
 							return true;
 						}
 						return false;
@@ -79,8 +75,7 @@ public:
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						SetBuffers_save = 5;
 						saveSettings();
-						tsl::goBack();
-						tsl::goBack();
+						tsl::goBack(2);
 						return true;
 					}
 					return false;
@@ -96,8 +91,7 @@ public:
 							SetBuffers_save = 4;
 							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 4;
 							saveSettings();
-							tsl::goBack();
-							tsl::goBack();
+							tsl::goBack(2);
 							return true;
 						}
 						return false;
@@ -111,8 +105,7 @@ public:
 							SetBuffers_save = 0;
 							if (Shared->expectedSetBuffers != -1) Shared->expectedSetBuffers = 4;
 							saveSettings();
-							tsl::goBack();
-							tsl::goBack();
+							tsl::goBack(2);
 							return true;
 						}
 						return false;
@@ -143,8 +136,7 @@ public:
 				ZeroSyncMode = getStringID(Lang::Id_On);
 				(Shared -> ZeroSync) = 0;
 				saveSettings();
-				tsl::goBack();
-				tsl::goBack();
+				tsl::goBack(2);
 				return true;
 			}
 			return false;
@@ -157,8 +149,7 @@ public:
 				ZeroSyncMode = getStringID(Lang::Id_Semi);
 				(Shared -> ZeroSync) = 2;
 				saveSettings();
-				tsl::goBack();
-				tsl::goBack();
+				tsl::goBack(2);
 				return true;
 			}
 			return false;
@@ -171,8 +162,7 @@ public:
 				ZeroSyncMode = getStringID(Lang::Id_Off);
 				(Shared -> ZeroSync) = 1;
 				saveSettings();
-				tsl::goBack();
-				tsl::goBack();
+				tsl::goBack(2);
 				return true;
 			}
 			return false;
@@ -487,8 +477,7 @@ public:
 				fclose(fp);
 				remove(patchPath);
 			}
-			tsl::goBack();
-			tsl::changeTo<AdvancedGui>();
+			tsl::swapTo<AdvancedGui>();
 			return true;
 		}
 		else if (rc != UINT32_MAX) {
