@@ -2,6 +2,7 @@
 #include <curl/curl.h>
 #include <stdatomic.h>
 #include <zlib.h>
+#include "DownloadFiles.hpp"
 
 const unsigned char data[] = {
 	#embed "titleids_with_patches.bin"
@@ -546,9 +547,6 @@ Result downloadPatchImpl(const char* source, const char* suffix) {
 		FILE* fp = fopen(file_path, "wb+");
 		if (!fp) {
 			curl_easy_cleanup(curl);
-			curl_global_cleanup();
-			socketExit();
-			smExit();
 			return 0x101;
 		}
 
@@ -594,48 +592,32 @@ Result downloadPatchImpl(const char* source, const char* suffix) {
 
 		if (!temp_error_code) {
 			fp = fopen(file_path, "rb");
-			fseek(fp, 0, SEEK_END);
-			size_t filesize1 = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-			char* buffer1 = (char*)calloc(1, filesize1 + 1);
-			fread(buffer1, 1, filesize1, fp);
-			fclose(fp);
-			fp = fopen(configPath, "rb");
-			if (fp) {
-				fseek(fp, 0, SEEK_END);
-				size_t filesize2 = ftell(fp);
-				fseek(fp, 0, SEEK_SET);
-				if (filesize2 != filesize1) {
-					fclose(fp);
-					free(buffer1);
-					FileDownloaded = true;
-				}
-				else {
-					char* buffer2 = (char*)calloc(1, filesize2 + 1);
-					fread(buffer2, 1, filesize2, fp);
-					fclose(fp);
-					if (memcmp(buffer1, buffer2, filesize1)) {
-						FileDownloaded = true;
-					}
-					else {
-						temp_error_code = 0x104;
-						remove(file_path);
-					}
-					free(buffer1);
-					free(buffer2);
-				}
-			}
-			else {
-				free(buffer1);
-				FileDownloaded = true;
+			if (!fp || fseek(fp, 0, SEEK_END) || ftell(fp) <= 0 || ftell(fp) > 32768) {
+				temp_error_code = 0x312;
+				if (fp) fclose(fp);
+				remove(file_path);
+			} else {
+				FILE* old = fopen(configPath, "rb");
+				const bool unchanged = download_files::equal(fp, old);
+				if (old) fclose(old);
+				fclose(fp);
+				if (unchanged) {
+					temp_error_code = 0x104;
+					remove(file_path);
+				} else FileDownloaded = true;
 			}
 			if (!temp_error_code) {
-				remove(configPath);
-				rename(file_path, configPath);
+				if (rename(file_path, configPath)) {
+					curl_easy_cleanup(curl);
+					return 0x101;
+				}
 				FILE* config = fopen(configPath, "r");
+				if (!config) { curl_easy_cleanup(curl); return 0x101; }
 				memset(&LOCK::configBuffer, 0, sizeof(LOCK::configBuffer));
 				fread(&LOCK::configBuffer, 1, 32768, config);
+				const bool readFailed = ferror(config);
 				fclose(config);
+				if (readFailed) { curl_easy_cleanup(curl); return 0x101; }
 				strcat(&LOCK::configBuffer[0], "\n");
 				LOCK::tree = ryml::parse_in_place(LOCK::configBuffer);
 				size_t root_id = LOCK::tree.root_id();
@@ -676,9 +658,6 @@ Result downloadPatchImpl(const char* source, const char* suffix) {
 			fp = fopen("sdmc:/SaltySD/plugins/FPSLocker/patches/README.md", "wb+");
 			if (!fp) {
 				curl_easy_cleanup(curl);
-				curl_global_cleanup();
-				socketExit();
-				smExit();
 				return 0x101;
 			}
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
@@ -695,65 +674,8 @@ Result downloadPatchImpl(const char* source, const char* suffix) {
 					curl_easy_cleanup(curl);
 					return 0x406;
 				}
-				size_t filesize = ftell(fp);
-				fseek(fp, 0, SEEK_SET);
-				char* buffer = (char*)calloc(1, filesize + 1);
-				fread(buffer, 1, filesize, fp);
-				char findText_char[] = "# FPSLocker Warehouse";
-				char BID_search[] = "`1234567890ABCDEF` (◯";
-				if (!strncmp(buffer, findText_char, strlen(findText_char))) {
-					snprintf(BID_search, sizeof(BID_search), "`%016lX`", TID);
-					auto start = std::search(&buffer[0], &buffer[filesize], &BID_search[0], &BID_search[strlen(BID_search)]);
-					if (start == &buffer[filesize]) {
-						temp_error_code = 0x1002;
-					}
-					else {
-						strcpy(BID_search, ") |");
-						auto end = std::search(start, &buffer[filesize], &BID_search[0], &BID_search[3]);
-						for (int i = -1; i >= -16; i--) {
-							if (end[i] == ',' && end[i+1] == ' ' && end[i+2] != 'v') {
-								size_t offset = 0;
-								for (int x = i+2; x <= i+18; x++) {
-									if (end[x] == ')') {
-										expected_display_version[offset] = 0;
-										break;
-									}
-									expected_display_version[offset++] = end[x];
-								}
-								break;
-							}
-						}
-						snprintf(BID_search, sizeof(BID_search), "`%016lX` (◯", BID);
-						if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) != end) {
-							temp_error_code = 0x1001;
-						}
-						else {
-							snprintf(BID_search, sizeof(BID_search), "`%016lX` (", BID);
-							if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) == end) {
-								strcpy(BID_search, " (");
-								auto found = std::find_end(start, end, &BID_search[0], &BID_search[2]);
-								found += 2;
-								if (strncmp("◯", found, strlen("◯")) == 0) {
-									temp_error_code = 0x1003;
-								}
-								else if (strncmp("❌", found, strlen("❌")) == 0) {
-									temp_error_code = 0x1004;
-								}
-								else if (strncmp("[", found, strlen("[")) == 0) {
-									temp_error_code = 0x1005;
-								}
-							}
-							else {
-								snprintf(BID_search, sizeof(BID_search), "`%016lX` (❌", BID);
-								if (std::search(start, end, &BID_search[0], &BID_search[strlen(BID_search)]) != end) {
-									temp_error_code = 0x1006;
-								}						
-							}	
-						}
-					}
-				}
-				else temp_error_code = 0x1007;
-				free(buffer);
+				temp_error_code = download_files::warehouseStatus(fp, TID, BID,
+					expected_display_version, sizeof(expected_display_version));
 			}
 			else if (res == CURLE_OPERATION_TIMEDOUT) {
 				temp_error_code = 0x405;
@@ -797,8 +719,10 @@ void downloadPatch(void*) {
 		.bsd_service_type = BsdServiceType_Auto
     };
 
-	smInitialize();
-	nifmInitialize(NifmServiceType_System);
+	if (R_FAILED(smInitialize())) { error_code = 0x101; return; }
+	if (R_FAILED(nifmInitialize(NifmServiceType_System))) {
+		smExit(); error_code = 0x412; return;
+	}
 	u32 dummy = 0;
 	NifmInternetConnectionType NifmConnectionType = (NifmInternetConnectionType)-1;
 	NifmInternetConnectionStatus NifmConnectionStatus = (NifmInternetConnectionStatus)-1;
@@ -809,9 +733,12 @@ void downloadPatch(void*) {
 		return;
 	}
 	nifmExit();
-	socketInitialize(&socketInitConfig);
-
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+	if (R_FAILED(socketInitialize(&socketInitConfig))) {
+		smExit(); error_code = 0x101; return;
+	}
+    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+		socketExit(); smExit(); error_code = 0x101; return;
+	}
 
 	Result last_error_code = UINT32_MAX;
 	Result last_bad_error_code = 0x316;
@@ -849,6 +776,7 @@ uint64_t getBID() {
 
 	if (R_SUCCEEDED(ldrDmntInitialize())) {
 		LoaderModuleInfo* module_infos = (LoaderModuleInfo*)malloc(sizeof(LoaderModuleInfo) * 16);
+		if (!module_infos) { ldrDmntExit(); return 0; }
 		s32 module_infos_count = 0;
 		Result ret = ldrDmntGetProcessModuleInfo(PID, module_infos, 16, &module_infos_count);
 		ldrDmntExit();
@@ -962,6 +890,11 @@ std::string getAppName(uint64_t Tid)
 {
 	NsApplicationControlData* appControlData = (NsApplicationControlData*)malloc(sizeof(NsApplicationControlData));
 
+	if (!appControlData) {
+		char fallback[17];
+		snprintf(fallback, sizeof(fallback), "%016lX", Tid);
+		return fallback;
+	}
 	Result rc = -1;
 	if (hosversionBefore(19,0,0)) {
 		rc = nsGetApplicationControlData(NsApplicationControlSource::NsApplicationControlSource_Storage, Tid, appControlData, sizeof(NsApplicationControlData), nullptr);
@@ -1013,14 +946,18 @@ std::string getAppName(uint64_t Tid)
 
 Result getTitles(int32_t count)
 {
+	if (count <= 0) return 0;
 	NsApplicationRecord* appRecords = (NsApplicationRecord*)malloc(count * sizeof(NsApplicationRecord));
+	if (!appRecords) return 0x101;
 	int32_t actualAppRecordCnt = 0;
 	Result rc = nsListApplicationRecord(appRecords, count, 0, &actualAppRecordCnt);
 	if (R_FAILED(rc)) {
 		free(appRecords);
 		return rc;
 	}
+	if (actualAppRecordCnt <= 0) { free(appRecords); return 0; }
 	uint64_t* TIDs = (uint64_t*)malloc(actualAppRecordCnt*sizeof(uint64_t));
+	if (!TIDs) { free(appRecords); return 0x101; }
 	for (int32_t i = 0; i < actualAppRecordCnt; i++) {
 		TIDs[i] = appRecords[i].application_id;
 	}
@@ -1039,6 +976,7 @@ Result getTitles(int32_t count)
 	else {
 		size_t size = ((actualAppRecordCnt * 0x308) + sizeof(NsApplicationControlData) + 0x1000) & ~0xFFF;
 		void* buffer = aligned_alloc(0x1000, size);
+		if (!buffer) { free(TIDs); return 0x101; }
 		AsyncValue _asyncValue;
 		rc = nsGetApplicationTitle(&_asyncValue, NsApplicationControlSource_Storage, TIDs, actualAppRecordCnt, buffer, size);
 		if (R_FAILED(rc)) {

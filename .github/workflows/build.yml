@@ -64,6 +64,15 @@ jobs:
           path: dist/FPSLocker.zip
           if-no-files-found: error
 
+      - name: Save matching debug symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: FPSLocker-debug
+          path: |
+            FPSLocker.elf
+            FPSLocker.map
+          if-no-files-found: error
+
   validate-patches:
     runs-on: ubuntu-latest
     steps:
@@ -82,6 +91,8 @@ jobs:
         run: |
           git clone --branch v4 https://github.com/masagrator/FPSLocker-Warehouse.git "$RUNNER_TEMP/warehouse"
           git -C "$RUNNER_TEMP/warehouse" checkout --detach f681828803dd0d58c43915519015e7e3d4a2ea57
+          g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tester/download_files.cpp -o /tmp/download-test
+          /tmp/download-test "$RUNNER_TEMP/warehouse/README.md"
           cd tester
           ./my_program -v "$RUNNER_TEMP/warehouse/SaltySD/plugins/FPSLocker/patches/0100A9400C9C2000/33463E11899166BB.yaml"
           ./my_program -v "$RUNNER_TEMP/warehouse/SaltySD/plugins/FPSLocker/patches/010000B0196AA000/005CB235608DCEDD.yaml"

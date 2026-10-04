@@ -651,6 +651,7 @@ namespace LOCK {
 		if (R_FAILED(rc)) return rc;
 
 		uint8_t* buffer = (uint8_t*)calloc(temp_size, sizeof(uint8_t));
+		if (!buffer) return 0x203;
 		old_temp_size = temp_size;
 		temp_size = 0;
 
@@ -664,6 +665,7 @@ namespace LOCK {
 			return 10;
 		}
 		buffer_data* new_struct = (buffer_data*)calloc(sizeof(buffer_data), 1);
+		if (!new_struct) { free(buffer); return 0x203; }
 		new_struct -> size = temp_size;
 		new_struct -> buffer_ptr = &buffer[0];
 		buffers.push_back(new_struct);
@@ -735,6 +737,10 @@ namespace LOCK {
 		}
 		uint32_t* out_buffer = (uint32_t*)calloc(4, instruction_num);
 		uint8_t* adjust_types_buffer = (uint8_t*)calloc(1, instruction_num);
+		if ((!out_buffer || !adjust_types_buffer) && instruction_num) {
+			free(out_buffer); free(adjust_types_buffer);
+			return 0x203;
+		}
 		cave_offset = start_cave_offset;
 		size_t itr = 0;
 		for (size_t i = 0; i < num_children; i++) {
@@ -748,6 +754,7 @@ namespace LOCK {
 				else
 					rc = ASM::processArm64(entry["instructions"][i], &instruction, &adjust_type, cave_offset, start_cave_offset, gotos);
 				if (R_FAILED(rc)) {
+					free(out_buffer); free(adjust_types_buffer);
 					freeDeclares();
 					return rc;
 				}
@@ -925,9 +932,13 @@ namespace LOCK {
 
 		uint32_t base_offset = strlen(lockMagic) + sizeof(flags) + (4 * entries_count);
 		uint32_t* offsets = (uint32_t*)calloc(entries_count, 4);
+		if (!offsets || buffers.empty()) {
+			free(offsets); freeBuffers(); return 0x203;
+		}
 		offsets[0] = base_offset;
 		base_offset += buffers[0] -> size;
-		uint8_t* IDs = (uint8_t*)calloc(entries_count, 1);;
+		uint8_t* IDs = (uint8_t*)calloc(entries_count, 1);
+		if (!IDs) { free(offsets); freeBuffers(); return 0x203; }
 		for (size_t i = 1; i < buffers.size(); i++) {
 			for (size_t x = 0; x < i; x++) {
 				if (buffers[x] -> size != buffers[i] -> size) {

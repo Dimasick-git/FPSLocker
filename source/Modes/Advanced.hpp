@@ -347,8 +347,12 @@ public:
 				exitPossible = false;
 				sprintf(patchChar, getStringID(Lang::Id_CheckingWarehouseForConfig));
 
-				threadCreate(&t1, downloadPatch, NULL, NULL, 0x20000, 0x3F, 3);
-				threadStart(&t1);
+				Result rc = threadCreate(&t1, downloadPatch, NULL, NULL, 0x20000, 0x3F, 3);
+				if (R_SUCCEEDED(rc)) {
+					rc = threadStart(&t1);
+					if (R_FAILED(rc)) threadClose(&t1);
+				}
+				if (R_FAILED(rc)) { exitPossible = true; error_code = rc; }
 				return true;
 			}
 			return false;
@@ -421,8 +425,10 @@ public:
 		}
 		Result rc = error_code;
 		if (rc != UINT32_MAX && rc != 0x404) {
-			threadWaitForExit(&t1);
-			threadClose(&t1);
+			if (!exitPossible) {
+				threadWaitForExit(&t1);
+				threadClose(&t1);
+			}
 			exitPossible = true;
 			error_code = UINT32_MAX;
 			progressBar[0] = 0;
