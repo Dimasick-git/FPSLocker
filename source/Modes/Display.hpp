@@ -98,13 +98,8 @@ public:
 
 		auto list = new tsl::elm::List();
 
-		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-
-			renderer->drawString(Docked_c.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
-
-			renderer->drawString(PressButton, false, x, y+160, 20, renderer->a(0xFFFF));
-
-		}), 200);
+		list->addItem(new tsl::elm::LiveDescription([this] { return std::string(Docked_c); }));
+		list->addItem(new tsl::elm::LiveDescription([this] { return std::string(PressButton); }));
 
 		frame->setContent(list);
 
@@ -276,13 +271,8 @@ public:
 
 		auto list = new tsl::elm::List();
 
-		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-
-			renderer->drawString(Docked_c, false, x, y+20, 20, renderer->a(0xFFFF));
-
-			renderer->drawString(PressButton, false, x, y+260, 20, renderer->a(0xFFFF));
-
-		}), 270);
+		list->addItem(new tsl::elm::LiveDescription([this] { return std::string(Docked_c); }));
+		list->addItem(new tsl::elm::LiveDescription([this] { return std::string(PressButton); }));
 
 		frame->setContent(list);
 
@@ -644,27 +634,20 @@ public:
 
 		auto list = new tsl::elm::List();
 
-		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-
-			const u32 fontsize = 17;
-			renderer->drawString(Docked_c, false, x, y+fontsize, fontsize, renderer->a(0xFFFF));
-			const char* start = strchr(Docked_c, '\n') + 1;
-			const char* end = strchr(start, '\n');
-			std::string second_line(start, end - start);
-			auto string_width = renderer->drawString(second_line.c_str(), false, x, y+fontsize, fontsize, renderer->a(0x0000)).first;
+		list->addItem(new tsl::elm::LiveDescription([this]() -> std::string {
+			std::string text = Docked_c;
 			if (!block) {
-				if (laneCount == 2 || laneCount == 4) {
-					if ((linkRate * laneCount) < 40) renderer->drawString("\uE14C", false, x+(fontsize/2)+string_width, y+(fontsize*2), fontsize, renderer->a(0xF00F));
-					else renderer->drawString("\uE14B", false, x+(fontsize/2)+string_width, y+(fontsize*2), fontsize, renderer->a(0xF0F0));
-				}
-				else {
-					if (linkRate < 20) renderer->drawString("\uE14C", false, x+(fontsize/2)+string_width, y+(fontsize*2), fontsize, renderer->a(0xF00F));
-					else renderer->drawString("\uE14B", false, x+(fontsize/2)+string_width, y+(fontsize*2), fontsize, renderer->a(0xF0F0));
+				const bool enoughBandwidth = (laneCount == 2 || laneCount == 4)
+					? (linkRate * laneCount) >= 40 : linkRate >= 20;
+				const auto firstLine = text.find('\n');
+				if (firstLine != std::string::npos) {
+					const auto secondLine = text.find('\n', firstLine + 1);
+					text.insert(secondLine == std::string::npos ? text.size() : secondLine,
+						enoughBandwidth ? " \uE14B" : " \uE14C");
 				}
 			}
-
-
-		}), 85);
+			return text;
+		}));
 
 		if (mode == ApmPerformanceMode_Boost && (height == 720 || height == 1080)) {
 			char string_temp[128];
