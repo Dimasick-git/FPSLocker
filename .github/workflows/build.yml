@@ -1,203 +1,120 @@
-name: Build FPSLocker
+name: Build & Release
+
+defaults:
+  run:
+    shell: bash
 
 on:
   push:
-    branches: [ "**" ]
-    paths-ignore:
-      - "README.md"
-      - "docs/**"
-      - ".github/ISSUE_TEMPLATE/**"
+    branches: ['**']
+    tags: ['v*']
   pull_request:
-    branches: [ "**" ]
-  workflow_dispatch:
 
 permissions:
-  contents: write       # auto-release job updates the rolling `latest-build` release
+  contents: write
 
-env:
-  # Opt in to Node.js 24 for actions/checkout, actions/upload-artifact, …
-  # — silences the deprecation warning and aligns with the June 2026 default.
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build (devkitPro/devkita64)
     runs-on: ubuntu-latest
-    container:
-      image: devkitpro/devkita64:latest
+    container: devkitpro/devkita64:latest
+
     steps:
-      - name: Checkout
+      - name: Install 7z
+        run: apt-get update -qq && apt-get install -y p7zip-full
+
+      - name: Checkout (with submodules)
         uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Mark workspace as safe
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Fix git safe.directory
+        run: git config --global --add safe.directory '*'
 
-      - name: Resolve commit metadata
-        id: meta
-        shell: bash
+      - name: Build libnx with HOS 23 APIs
         run: |
-          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
-          AUTHOR_NAME="$(git log -1 --pretty=format:'%an')"
-          AUTHOR_EMAIL="$(git log -1 --pretty=format:'%ae')"
-          COMMIT_SUBJECT="$(git log -1 --pretty=format:'%s')"
-          COMMIT_DATE="$(git log -1 --pretty=format:'%cI')"
-          APP_VERSION="$(grep -E '^APP_VERSION[[:space:]]*:=' Makefile | head -n1 | sed -E 's/.*:=[[:space:]]*//' | tr -d '\r')"
-          {
-            echo "short_sha=$SHORT_SHA"
-            echo "author_name=$AUTHOR_NAME"
-            echo "author_email=$AUTHOR_EMAIL"
-            echo "commit_subject=$COMMIT_SUBJECT"
-            echo "commit_date=$COMMIT_DATE"
-            echo "app_version=$APP_VERSION"
-          } >> "$GITHUB_OUTPUT"
-          echo "==== BUILD META ===="
-          echo "version : $APP_VERSION"
-          echo "commit  : $SHORT_SHA  ($COMMIT_DATE)"
-          echo "author  : $AUTHOR_NAME <$AUTHOR_EMAIL>"
-          echo "subject : $COMMIT_SUBJECT"
+          git clone https://github.com/switchbrew/libnx.git "$RUNNER_TEMP/libnx"
+          git -C "$RUNNER_TEMP/libnx" checkout --detach feebd026ca0f5dcc2119f46ad8e0d16ad3dd4973
+          make -C "$RUNNER_TEMP/libnx" -j"$(nproc)"
+          make -C "$RUNNER_TEMP/libnx" install
+          "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-gcc" --version
 
-      - name: Inject build metadata into APP_VERSION
-        shell: bash
+      - name: Build and verify overlay
         run: |
-          # Append short SHA to APP_VERSION so every artifact is traceable to a commit.
-          BASE_VERSION="${{ steps.meta.outputs.app_version }}"
-          SHORT_SHA="${{ steps.meta.outputs.short_sha }}"
-          NEW_VERSION="${BASE_VERSION}+ryazh.${SHORT_SHA}"
-          sed -i -E "s|^(APP_VERSION[[:space:]]*:=[[:space:]]*).*|\1${NEW_VERSION}|" Makefile
-          echo "Patched APP_VERSION -> ${NEW_VERSION}"
-          grep -E '^APP_VERSION' Makefile
-
-      - name: Build .ovl
-        shell: bash
-        run: |
-          # devkitpro/devkita64 image already exports DEVKITPRO, DEVKITA64, PATH
-          # via ENV directives — no devkitvars.sh shim is needed. Just verify and
-          # fall back to sourcing it if a future image stops exporting them.
-          if [ -z "${DEVKITPRO:-}" ]; then
-            for f in /opt/devkitpro/devkitvars.sh /etc/profile.d/devkit-env.sh; do
-              if [ -f "$f" ]; then
-                # shellcheck disable=SC1090
-                . "$f"
-                break
-              fi
-            done
-          fi
-          if [ -z "${DEVKITPRO:-}" ]; then
-            export DEVKITPRO=/opt/devkitpro
-          fi
-          if [ -z "${DEVKITA64:-}" ] && [ -d "$DEVKITPRO/devkitA64" ]; then
-            export DEVKITA64="$DEVKITPRO/devkitA64"
-          fi
-          export PATH="${DEVKITPRO:-/opt/devkitpro}/tools/bin:${DEVKITA64:-/opt/devkitpro/devkitA64}/bin:$PATH"
-          echo "DEVKITPRO=$DEVKITPRO"
-          echo "DEVKITA64=$DEVKITA64"
-          which aarch64-none-elf-gcc || true
           make -j"$(nproc)"
-
-      - name: Verify Ryazhahand signature
-        shell: bash
-        run: |
-          if [ ! -f FPSLocker.ovl ]; then
-            echo "::error::FPSLocker.ovl was not produced"
-            exit 1
-          fi
-          SIG="$(tail -c 4 FPSLocker.ovl)"
-          echo "Trailing signature: $SIG"
-          if [ "$SIG" != "RYZH" ]; then
-            echo "::error::Expected RYZH signature, got '$SIG'"
-            exit 1
-          fi
-
-      - name: Stage artifact
-        shell: bash
-        run: |
-          mkdir -p dist
-          cp FPSLocker.ovl dist/FPSLocker.ovl
-          # BUILD_INFO.txt is for traceability inside the CI artifact / zip only —
-          # it is NOT published as a separate file in the release. Author is
-          # forced to Dimasick-git regardless of which contributor signed the commit.
-          cat > dist/BUILD_INFO.txt <<EOF
-          FPSLocker (Ryazhenka / libryazhahand build)
-          ===========================================
-          Version        : ${{ steps.meta.outputs.app_version }}+ryazh.${{ steps.meta.outputs.short_sha }}
-          Commit         : ${{ github.sha }}
-          Short SHA      : ${{ steps.meta.outputs.short_sha }}
-          Ref            : ${{ github.ref }}
-          Author         : Dimasick-git
-          Commit author  : ${{ steps.meta.outputs.author_name }} <${{ steps.meta.outputs.author_email }}>
-          Subject        : ${{ steps.meta.outputs.commit_subject }}
-          Commit date    : ${{ steps.meta.outputs.commit_date }}
-          Built by       : ${{ github.actor }}
-          Workflow run   : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          Repository     : ${{ github.server_url }}/${{ github.repository }}
-          EOF
-          echo "--- BUILD_INFO.txt ---"
-          cat dist/BUILD_INFO.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          data = Path('FPSLocker.ovl').read_bytes()
+          assert data[16:20] == b'NRO0'
+          assert data[-4:] == b'RYZH'
+          PY
+          mkdir -p dist/sd-root/switch/.overlays
+          cp FPSLocker.ovl dist/sd-root/switch/.overlays/
+          cd dist/sd-root
+          7z a ../FPSLocker.zip ./switch
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: FPSLocker-${{ steps.meta.outputs.short_sha }}
-          path: |
-            dist/FPSLocker.ovl
-            dist/BUILD_INFO.txt
+          name: FPSLocker
+          path: dist/FPSLocker.zip
           if-no-files-found: error
-          retention-days: 30
 
-  auto-tag-on-version-change:
-    name: Auto-tag if APP_VERSION changed (triggers release.yml)
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  validate-patches:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build upstream patch validators
+        env:
+          SALTYNX_REF: '2.1.1'
+        run: python3 tester/run.py
+      - name: Validate AArch32 and AArch64 game patches against SaltyNX
+        run: |
+          git clone --branch v4 https://github.com/masagrator/FPSLocker-Warehouse.git "$RUNNER_TEMP/warehouse"
+          git -C "$RUNNER_TEMP/warehouse" checkout --detach f681828803dd0d58c43915519015e7e3d4a2ea57
+          cd tester
+          ./my_program -v "$RUNNER_TEMP/warehouse/SaltySD/plugins/FPSLocker/patches/0100A9400C9C2000/33463E11899166BB.yaml"
+          ./my_program -v "$RUNNER_TEMP/warehouse/SaltySD/plugins/FPSLocker/patches/010000B0196AA000/005CB235608DCEDD.yaml"
+
+  release:
+    name: Publish release
+    needs: [build, validate-patches]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions:  write       # required for `gh workflow run` (workflow_dispatch)
+
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Compare APP_VERSION with latest release tag
+
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: FPSLocker
+
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: FPSLocker ${{ steps.tag.outputs.tag }}
+          generate_release_notes: false
+          body: |
+            Новшества FPSLocker 3.5.0, компактный интерфейс и новая libryazhahand. Для тройной буферизации нужен SaltyNX 2.1.0+.
+          files: FPSLocker.zip
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          APP_VERSION=$(grep -E '^APP_VERSION\s*:=' Makefile | sed -E 's/.*:=\s*//;s/\s*$//')
-          if [ -z "$APP_VERSION" ]; then
-            echo "::error::Could not extract APP_VERSION from Makefile."
-            exit 1
-          fi
-          TAG="v${APP_VERSION}"
-          LATEST=$(gh release list --repo "${{ github.repository }}" --limit 5 --json tagName --jq '.[] | .tagName' | grep -E '^v[0-9]' | head -1 || echo "")
-          echo "APP_VERSION=$APP_VERSION  ->  TAG=$TAG"
-          echo "Latest release tag: $LATEST"
-
-          # If a release already exists for this tag — nothing to do.
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; nothing to do."
-            exit 0
-          fi
-
-          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-            # Tag already exists at origin — `git push origin $TAG` would be a
-            # no-op (ref unchanged), so no `push: tags` event fires and
-            # release.yml never triggers. Dispatch release.yml directly via
-            # workflow_dispatch instead.
-            echo "Tag $TAG exists but has no release — dispatching release.yml via workflow_dispatch."
-            gh workflow run release.yml \
-              --repo "${{ github.repository }}" \
-              --ref  "$TAG" \
-              -f tag="$TAG" \
-              -f prerelease=false
-            echo "Dispatched release.yml for $TAG."
-          else
-            git config user.name  'Dimasick-git'
-            git config user.email 'dimaorynchukk@gmail.com'
-            git tag -a "$TAG" -m "Auto-tag on APP_VERSION change: $TAG"
-            git push origin "$TAG"
-            echo "Pushed brand-new $TAG — release.yml will pick it up via push:tags."
-          fi
-
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

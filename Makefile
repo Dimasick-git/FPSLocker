@@ -38,7 +38,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 APP_TITLE	:=	FPSLocker
-APP_VERSION	:=	3.3.3
+APP_VERSION	:=	3.5.1
 
 TARGET		:=	FPSLocker
 BUILD		:=	build
@@ -47,15 +47,7 @@ DATA		:=	data
 INCLUDES	:=	include source
 NO_ICON		:=  1
 
-# Ryazhahand ecosystem: libryazhahand provides ryazhahand.mk
-# (with backwards-compatible fallback to ultrahand.mk if user pulled an older snapshot)
-ifneq ($(wildcard ${TOPDIR}/libs/libryazhahand/ryazhahand.mk),)
 include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
-else
-ifneq ($(wildcard ${TOPDIR}/libs/libryazhahand/ultrahand.mk),)
-include ${TOPDIR}/libs/libryazhahand/ultrahand.mk
-endif
-endif
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -82,7 +74,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++26 -Wno-dangling-else -ffast-math 
 ASFLAGS		:= -g $(ARCH)
 LDFLAGS		= -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,-wrap,__cxa_throw -Wl,-wrap,_Unwind_Resume -Wl,-wrap,__gxx_personality_v0
 
-LIBS		:= `curl-config --libs` -lpng -lz
+LIBS		:= -lpng -lcurl -lz -lminizip -lmbedtls -lmbedx509 -lmbedcrypto -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

@@ -8,3 +8,11 @@ docs/
 README.md
 Makefile
 libs/libryazhahand
+.ryazhenka-version
+source/List.hpp
+source/NoteHeader.hpp
+source/main.cpp
+source/Modes/
+source/omm.c
+include/omm.h
+source/Utils.hpp

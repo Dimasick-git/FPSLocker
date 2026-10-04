@@ -5,21 +5,21 @@
 
 static Service g_ommSrv;
 
-NX_GENERATE_SERVICE_GUARD(omm);
+NX_GENERATE_SERVICE_GUARD(fpslockerOmm);
 
-Result _ommInitialize(void) {
+Result _fpslockerOmmInitialize(void) {
     return smGetService(&g_ommSrv, "omm");
 }
 
-void _ommCleanup(void) {
+void _fpslockerOmmCleanup(void) {
     serviceClose(&g_ommSrv);
 }
 
-Service* ommGetServiceSession(void) {
+Service* fpslockerOmmGetServiceSession(void) {
     return &g_ommSrv;
 }
 
-Result ommGetDefaultDisplayResolution(s32* width, s32* height) { //[3.0.0+]
+Result fpslockerOmmGetDefaultDisplayResolution(s32* width, s32* height) { //[3.0.0+]
     struct {
         s32 width;
         s32 height;

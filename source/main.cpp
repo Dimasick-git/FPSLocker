@@ -1,10 +1,10 @@
 #define TESLA_INIT_IMPL // If you have more than one file using the tesla header, only define this in the main one
 #include <tesla.hpp>    // The Tesla Header
-// MiniList.hpp removed — libryazhahand's tesla.hpp ships tsl::elm::MiniListItem
-// and tsl::elm::MiniToggleListItem natively (the legacy masa libtesla replacements
+// MiniList.hpp removed — libryazhahand's tesla.hpp ships tsl::elm::CompactListItem
+// and tsl::elm::CompactToggleListItem natively (the legacy masa libtesla replacements
 // here would cause redefinition errors).
-#include "NoteHeader.hpp"
 #include "List.hpp"
+#include "NoteHeader.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 #include "SaltyNX.h"
@@ -70,7 +70,7 @@ public:
 		auto list = new tsl::elm::List();
 
 		auto *clickableListItem = new tsl::elm::ListItem2(getStringID(Lang::Id_DeleteSettings));
-		clickableListItem->setClickListener([this](u64 keys) { 
+		clickableListItem->setClickListener([this](u64 keys) {
 			if (keys & HidNpadButton_A) {
 				char path[512] = "";
 				if (_titleid != 0x1234567890ABCDEF) for (size_t i = 0; i < 0x10; i++) {
@@ -101,7 +101,7 @@ public:
 		list->addItem(clickableListItem);
 
 		auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_DeletePatches));
-		clickableListItem2->setClickListener([this](u64 keys) { 
+		clickableListItem2->setClickListener([this](u64 keys) {
 			if (keys & HidNpadButton_A) {
 				char folder[640] = "";
 				if (_titleid != 0x1234567890ABCDEF) {
@@ -178,24 +178,19 @@ public:
 		auto list = new tsl::elm::List();
 
 		if (oldSalty || !SaltySD) {
-			list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-				if (!SaltySD) {
-					renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, renderer->a(0xF33F));
-				}
-				else if (!plugin) {
-					renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, renderer->a(0xF33F));
-				}
-				else if (!check) {
-					renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, renderer->a(0xF33F));
-				}
-			}), 30);
+			list->addItem(new tsl::elm::LiveDescription([]() -> std::string {
+                if (!SaltySD) return getStringID(Lang::Id_SaltyNXIsNotWorking);
+                if (!plugin) return getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard);
+                if (!check) return getStringID(Lang::Id_GameIsNotRunning);
+                return {};
+            }));
 		}
 
 		if (R_FAILED(rc)) {
 			char error[24] = "";
 			sprintf(error, "Err: 0x%x", rc);
 			auto *clickableListItem2 = new tsl::elm::ListItem2(error);
-			clickableListItem2->setClickListener([](u64 keys) { 
+			clickableListItem2->setClickListener([](u64 keys) {
 				if (keys & HidNpadButton_A) {
 					return true;
 				}
@@ -206,7 +201,7 @@ public:
 		}
 		else {
 			auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_All));
-			clickableListItem3->setClickListener([](u64 keys) { 
+			clickableListItem3->setClickListener([](u64 keys) {
 				if (keys & HidNpadButton_A) {
 					tsl::changeTo<NoGameSub>(0x1234567890ABCDEF, getStringID(Lang::Id_Everything));
 					return true;
@@ -218,7 +213,7 @@ public:
 			mutexLock(&TitlesAccess);
 			for (size_t i = 0; i < titles.size(); i++) {
 				auto *clickableListItem = new tsl::elm::ListItem2(titles[i].TitleName);
-				clickableListItem->setClickListener([i](u64 keys) { 
+				clickableListItem->setClickListener([i](u64 keys) {
 					if (keys & HidNpadButton_A) {
 						tsl::changeTo<NoGameSub>(titles[i].TitleID, titles[i].TitleName);
 						return true;
@@ -257,20 +252,15 @@ public:
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 
-		list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-			if (!SaltySD) {
-				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+20, 20, renderer->a(0xF33F));
-			}
-			else if (!plugin) {
-				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+20, 20, renderer->a(0xF33F));
-			}
-			else if (!check) {
-				renderer->drawString(getStringID(Lang::Id_GameIsNotRunning), false, x, y+20, 19, renderer->a(0xF33F));
-			}
-		}), 30);
+		list->addItem(new tsl::elm::LiveDescription([]() -> std::string {
+                if (!SaltySD) return getStringID(Lang::Id_SaltyNXIsNotWorking);
+                if (!plugin) return getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard);
+                if (!check) return getStringID(Lang::Id_GameIsNotRunning);
+                return {};
+            }));
 
 		auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_GamesList));
-		clickableListItem2->setClickListener([this](u64 keys) { 
+		clickableListItem2->setClickListener([this](u64 keys) {
 			if (keys & HidNpadButton_A) {
 				tsl::changeTo<NoGame2>(this -> rc, 2, true);
 				return true;
@@ -281,7 +271,7 @@ public:
 		list->addItem(clickableListItem2);
 
 		auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisplaySettings), "\uE151");
-		clickableListItem3->setClickListener([](u64 keys) { 
+		clickableListItem3->setClickListener([](u64 keys) {
 			if (keys & HidNpadButton_A) {
 				tsl::changeTo<WarningDisplayGui>();
 				return true;
@@ -291,8 +281,8 @@ public:
 
 		list->addItem(clickableListItem3);
 
-		auto *clickableListItem4 = new tsl::elm::ToggleListItem(getStringID(Lang::Id_ForceEnglishLanguage), forceEnglishLanguage);
-		clickableListItem4->setClickListener([](u64 keys) { 
+		auto *clickableListItem4 = new tsl::elm::CompactToggleListItem(getStringID(Lang::Id_ForceEnglishLanguage), forceEnglishLanguage);
+		clickableListItem4->setClickListener([](u64 keys) {
 			if (keys & HidNpadButton_A) {
 				setForceEnglishLanguage(!forceEnglishLanguage);
 				tsl::setNextOverlay(overlayName, "");
@@ -332,7 +322,7 @@ public:
 	DockedFPSTargetGui() {
 		getDockedHighestRefreshRate(&highestRefreshRate);
 		s32 width = 0;
-		ommGetDefaultDisplayResolution(&width, &height);
+		fpslockerOmmGetDefaultDisplayResolution(&width, &height);
 		if (height == 1080 || height == 720) {
 			LoadDockedModeAllowedSave(rr, as, nullptr, (height == 720) ? true : false);
 		}
@@ -347,7 +337,7 @@ public:
 					selected = i;
 					break;
 				}
-			}			
+			}
 		}
 		else if (Shared -> FPSmode == 2) selected = 3;
 		else selected = 9;
@@ -407,14 +397,14 @@ public:
 		smExit();
 		s32 width_impl = 0;
 		s32 height_impl = 0;
-		ommGetDefaultDisplayResolution(&width_impl, &height_impl);
+		fpslockerOmmGetDefaultDisplayResolution(&width_impl, &height_impl);
 		if (height_impl != height) {
 			tsl::goBack();
 			return true;
 		}
 		counter += 0.1f;
 		if (keysDown & HidNpadButton_Down) {
-			if ((selected / 4) < (sizeofAllowedFPSTargets / 4)) 
+			if ((selected / 4) < (sizeofAllowedFPSTargets / 4))
 				selected += 4;
 			else selected = selected % 4;
 			if (selected >= sizeofAllowedFPSTargets)
@@ -422,15 +412,15 @@ public:
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Up) {
-			if ((selected / 4) > 0) 
+			if ((selected / 4) > 0)
 				selected -= 4;
 			else selected = ((sizeofAllowedFPSTargets / 4) * 4) + (selected % 4);
 			if (selected >= sizeofAllowedFPSTargets)
-				selected = sizeofAllowedFPSTargets - 1;	
+				selected = sizeofAllowedFPSTargets - 1;
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Right) {
-			if (selected % 4 < 3) 
+			if (selected % 4 < 3)
 				selected += 1;
 			else {
 				selected -= 3;
@@ -440,7 +430,7 @@ public:
 			return true;
 		}
 		else if (keysDown & HidNpadButton_Left) {
-			if (selected % 4 > 0) 
+			if (selected % 4 > 0)
 				selected -= 1;
 			else {
 				selected += 3;
@@ -491,7 +481,7 @@ public:
 			saveSettings();
 			tsl::goBack();
 			return true;
-		}			
+		}
 		return false;   // Return true here to singal the inputs have been consumed
 	}
 };
@@ -504,8 +494,8 @@ public:
 	bool render100Above = false;
 	bool pluginRanAtBoot = false;
 	bool noPatchDetectedButNeeded = false;
-	GuiTest(u8 arg1, u8 arg2, bool arg3) { 
-		
+	GuiTest(u8 arg1, u8 arg2, bool arg3) {
+
 		if (isLite) entry_mode = ApmPerformanceMode_Normal;
 		else {
 			smInitialize();
@@ -531,48 +521,29 @@ public:
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
-		
-		list->addItem(new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-			if (!SaltySD) {
-				renderer->drawString(getStringID(Lang::Id_SaltyNXIsNotWorking), false, x, y+50, 20, renderer->a(0xF33F));
-			}
-			else if (!plugin) {
-				renderer->drawString(getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard), false, x, y+50, 20, renderer->a(0xF33F));
-			}
-			else if (!check) {
-				if (closed) {
-					renderer->drawString(getStringID(Lang::Id_GameWasClosedOverlayDisabled), false, x, y+20, 19, renderer->a(0xF33F));
-					renderer->drawString(getStringID(Lang::Id_RestartOverlayToCheckAgain), false, x, y+70, 20, renderer->a(0xFFFF));
-				}
-				else {
-					renderer->drawString(getStringID(Lang::Id_GameIsNotRunningOverlayDisabled), false, x, y+20, 19, renderer->a(0xF33F));
-				}
-			}
-			else if (!PluginRunning) {
-				renderer->drawString(getStringID(Lang::Id_GameIsRunning), false, x, y+20, 20, renderer->a(0xFFFF));
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsNotRunning), false, x, y+70, 20, renderer->a(0xF33F));
-			}
-			else if (!(Shared -> pluginActive)) {
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunningWaitingForFrame), false, x, y+20, 20, renderer->a(0xF33F));
-			}
-			else {
-				renderer->drawString(getStringID(Lang::Id_NXFPSIsRunning), false, x, y+20, 20, renderer->a(0xFFFF));
-				if (((Shared -> API) > 0) && ((Shared -> API) <= 2))
-					renderer->drawString(FPSMode_c, false, x, y+43, 20, renderer->a(0xFFFF));
-				renderer->drawString(FPSTarget_c, false, x, y+86, 20, renderer->a(0xFFFF));
-				if (render100Above) renderer->drawString(PFPS_c, false, x+265, y+48, 50, renderer->a(0xFFFF));
-				else renderer->drawString(PFPS_c, false, x+290, y+48, 50, renderer->a(0xFFFF));
-				renderer->drawString("FPS", false, x+320, y+70, 20, renderer->a(0xFFFF));
-				if (Shared -> forceOriginalRefreshRate) renderer->drawString(getStringID(Lang::Id_PatchIsNotForcing60Hz), false, x, y+129, 20, renderer->a(0xF99F));
-				else if (noPatchDetectedButNeeded) renderer->drawString(getStringID(Lang::Id_PatchFileDoesntExist), false, x, y+129, 20, renderer->a(0xF99F));
-			}
-		}), 170);
+
+		list->addItem(new tsl::elm::LiveDescription([this]() -> std::string {
+            if (!SaltySD) return getStringID(Lang::Id_SaltyNXIsNotWorking);
+            if (!plugin) return getStringID(Lang::Id_CantDetectNXFPSPluginOnSdcard);
+            if (!check) {
+                if (closed) return std::string(getStringID(Lang::Id_GameWasClosedOverlayDisabled)) + "\n" + getStringID(Lang::Id_RestartOverlayToCheckAgain);
+                return getStringID(Lang::Id_GameIsNotRunningOverlayDisabled);
+            }
+            if (!PluginRunning) return std::string(getStringID(Lang::Id_GameIsRunning)) + "\n" + getStringID(Lang::Id_NXFPSIsNotRunning);
+            if (!Shared->pluginActive) return getStringID(Lang::Id_NXFPSIsRunningWaitingForFrame);
+            std::string text = getStringID(Lang::Id_NXFPSIsRunning);
+            if (Shared->API > 0 && Shared->API <= 2) text += "\n" + std::string(FPSMode_c);
+            text += "\n" + std::string(FPSTarget_c) + "\n" + PFPS_c + " FPS";
+            if (Shared->forceOriginalRefreshRate) text += "\n" + std::string(getStringID(Lang::Id_PatchIsNotForcing60Hz));
+            else if (noPatchDetectedButNeeded) text += "\n" + std::string(getStringID(Lang::Id_PatchFileDoesntExist));
+            return text;
+        }));
 
 		if (PluginRunning && (Shared -> pluginActive)) {
 			pluginRanAtBoot = true;
 			if (entry_mode == ApmPerformanceMode_Normal) {
 				auto *clickableListItem = new tsl::elm::ListItem2(getStringID(Lang::Id_IncreaseFPSTarget));
-				clickableListItem->setClickListener([](u64 keys) { 
+				clickableListItem->setClickListener([](u64 keys) {
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						if ((Shared -> FPSmode) == 2 && !(Shared -> FPSlocked)) {
 							(Shared -> FPSlocked) = 35;
@@ -580,7 +551,7 @@ public:
 						else if (!(Shared -> FPSlocked)) {
 							(Shared -> FPSlocked) = 60;
 						}
-						else if ((Shared -> FPSlocked) < isOLED ? supportedHandheldRefreshRatesOLED[sizeof(supportedHandheldRefreshRatesOLED)-1] : supportedHandheldRefreshRates[sizeof(supportedHandheldRefreshRates)-1]) {
+						else if ((Shared -> FPSlocked) < (isOLED ? supportedHandheldRefreshRatesOLED[sizeof(supportedHandheldRefreshRatesOLED)-1] : supportedHandheldRefreshRates[sizeof(supportedHandheldRefreshRates)-1])) {
 							(Shared -> FPSlocked) += 5;
 						}
 						if (!oldSalty && displaySync.ds.handheld) {
@@ -620,9 +591,9 @@ public:
 				});
 
 				list->addItem(clickableListItem);
-				
+
 				auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_DecreaseFPSTarget));
-				clickableListItem2->setClickListener([](u64 keys) { 
+				clickableListItem2->setClickListener([](u64 keys) {
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						if ((Shared -> FPSmode) < 2 && !(Shared -> FPSlocked)) {
 							(Shared -> FPSlocked) = 55;
@@ -672,18 +643,18 @@ public:
 			}
 			else if (entry_mode == ApmPerformanceMode_Boost) {
 				auto *clickableListItem2 = new tsl::elm::ListItem2(getStringID(Lang::Id_ChangeFPSTarget));
-				clickableListItem2->setClickListener([](u64 keys) { 
+				clickableListItem2->setClickListener([](u64 keys) {
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						tsl::changeTo<DockedFPSTargetGui>();
 						return true;
 					}
 					return false;
-				});	
-				list->addItem(clickableListItem2);			
+				});
+				list->addItem(clickableListItem2);
 			}
 
 			auto *clickableListItem4 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisableCustomFPSTarget));
-			clickableListItem4->setClickListener([this](u64 keys) { 
+			clickableListItem4->setClickListener([this](u64 keys) {
 				if ((keys & HidNpadButton_A) && PluginRunning) {
 					if (entry_mode == ApmPerformanceMode_Normal && (Shared -> FPSlocked)) {
 						(Shared -> FPSlocked) = 0;
@@ -707,7 +678,7 @@ public:
 			list->addItem(clickableListItem4);
 
 			auto *clickableListItem3 = new tsl::elm::ListItem2(getStringID(Lang::Id_AdvancedSettings));
-			clickableListItem3->setClickListener([](u64 keys) { 
+			clickableListItem3->setClickListener([](u64 keys) {
 				if ((keys & HidNpadButton_A) && PluginRunning) {
 					tsl::changeTo<AdvancedGui>();
 					return true;
@@ -719,7 +690,7 @@ public:
 
 		if (SaltySD) {
 			auto *clickableListItem6 = new tsl::elm::ListItem2(getStringID(Lang::Id_DisplaySettings), "\uE151");
-			clickableListItem6->setClickListener([](u64 keys) { 
+			clickableListItem6->setClickListener([](u64 keys) {
 				if (keys & HidNpadButton_A) {
 					tsl::changeTo<WarningDisplayGui>();
 					return true;
@@ -731,7 +702,7 @@ public:
 
 		// Add the list to the frame for it to be drawn
 		frame->setContent(list);
-		
+
 		// Return the frame to have it become the top level element of this Gui
 		return frame;
 	}
@@ -830,13 +801,13 @@ class OverlayTest : public tsl::Overlay {
 public:
 	// libtesla already initialized fs, hid, pl, pmdmnt, hid:sys and set:sys
 	virtual void initServices() override {
-		
+
 		#if !defined(__SWITCH__) && !defined(__OUNCE__)
 			systemtickfrequency = armGetSystemTickFreq();
 		#endif
 		tsl::hlp::doWithSmSession([]{
 			nsInitialize();
-			ommInitialize();
+			fpslockerOmmInitialize();
 			setsysInitialize();
 			SetSysProductModel model;
 			if (R_SUCCEEDED(setsysGetProductModel(&model))) {
@@ -888,7 +859,7 @@ public:
 
 			if (R_FAILED(pmdmntGetApplicationProcessId(&PID))) return;
 			check = true;
-			
+
 			ptrdiff_t rel_offset = searchSharedMemoryBlock(base);
 			if (rel_offset > -1) {
 				Shared = (NxFpsSharedBlock*)(base + rel_offset);
@@ -909,13 +880,13 @@ public:
 					PluginRunning = true;
 					threadCreate(&t0, loopThread, NULL, NULL, 0x1000, 0x20, 0);
 					threadStart(&t0);
-				}		
+				}
 			}
-		
+
 		});
-	
+
 	}  // Called at the start to initialize all services necessary for this Overlay
-	
+
 	virtual void exitServices() override {
 		leventSignal(&threadexit);
 		threadWaitForExit(&t1);
@@ -925,12 +896,12 @@ public:
 		shmemClose(&_sharedmemory);
 		setsysExit();
 		nsExit();
-		ommExit();
+		fpslockerOmmExit();
 		fsdevUnmountDevice("sdmc");
 	}  // Callet at the end to clean up all services previously initialized
 
 	virtual void onShow() override {}    // Called before overlay wants to change from invisible to visible state
-	
+
 	virtual void onHide() override {}    // Called before overlay wants to change from visible to invisible state
 
 	virtual std::unique_ptr<tsl::Gui> loadInitialGui() override {
