@@ -40,7 +40,7 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           git config --global --add safe.directory '*'
           git config --global url."git@github.com:Dimasick-git/libryazhahand-deko".insteadOf "https://github.com/Dimasick-git/libryazhahand-deko"
-          git config --global core.sshCommand "ssh -i ~/.ssh/libryazhahand-deko -o IdentitiesOnly=yes"
+          git config --global core.sshCommand "ssh -i $HOME/.ssh/libryazhahand-deko -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
           git submodule update --init --recursive
 
       - name: Fix git safe.directory
@@ -99,7 +99,7 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           git config --global --add safe.directory '*'
           git config --global url."git@github.com:Dimasick-git/libryazhahand-deko".insteadOf "https://github.com/Dimasick-git/libryazhahand-deko"
-          git config --global core.sshCommand "ssh -i ~/.ssh/libryazhahand-deko -o IdentitiesOnly=yes"
+          git config --global core.sshCommand "ssh -i $HOME/.ssh/libryazhahand-deko -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
           git submodule update --init --recursive
       - name: Check GUI callback lifetime with ASan and UBSan
         run: |
