@@ -29,8 +29,19 @@ jobs:
       - name: Checkout (with submodules)
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 0
+      - name: libryazhahand-deko (private, deploy key)
+        env:
+          DEKO_KEY: ${{ secrets.LIBRYAZHAHAND_DEKO_KEY }}
+        run: |
+          command -v ssh >/dev/null 2>&1 || { if command -v apt-get >/dev/null 2>&1 && [ "$(id -u)" = 0 ]; then apt-get update -qq && apt-get install -y -qq openssh-client; else sudo apt-get install -y -qq openssh-client; fi; }
+          mkdir -p ~/.ssh && printf '%s\n' "$DEKO_KEY" > ~/.ssh/libryazhahand-deko && chmod 600 ~/.ssh/libryazhahand-deko
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global --add safe.directory '*'
+          git config --global url."git@github.com:Dimasick-git/libryazhahand-deko".insteadOf "https://github.com/Dimasick-git/libryazhahand-deko"
+          git config --global core.sshCommand "ssh -i ~/.ssh/libryazhahand-deko -o IdentitiesOnly=yes"
+          git submodule update --init --recursive
 
       - name: Fix git safe.directory
         run: git config --global --add safe.directory '*'
@@ -78,7 +89,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
+      - name: libryazhahand-deko (private, deploy key)
+        env:
+          DEKO_KEY: ${{ secrets.LIBRYAZHAHAND_DEKO_KEY }}
+        run: |
+          command -v ssh >/dev/null 2>&1 || { if command -v apt-get >/dev/null 2>&1 && [ "$(id -u)" = 0 ]; then apt-get update -qq && apt-get install -y -qq openssh-client; else sudo apt-get install -y -qq openssh-client; fi; }
+          mkdir -p ~/.ssh && printf '%s\n' "$DEKO_KEY" > ~/.ssh/libryazhahand-deko && chmod 600 ~/.ssh/libryazhahand-deko
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global --add safe.directory '*'
+          git config --global url."git@github.com:Dimasick-git/libryazhahand-deko".insteadOf "https://github.com/Dimasick-git/libryazhahand-deko"
+          git config --global core.sshCommand "ssh -i ~/.ssh/libryazhahand-deko -o IdentitiesOnly=yes"
+          git submodule update --init --recursive
       - name: Check GUI callback lifetime with ASan and UBSan
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer libs/libryazhahand/tests/gui_stack.cpp -o /tmp/gui-stack-test

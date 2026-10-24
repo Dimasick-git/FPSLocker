@@ -1,4 +1,4 @@
 [submodule "libs/libryazhahand"]
 	path = libs/libryazhahand
-	url = https://github.com/dimasick-git/libryazhahand.git
+	url = https://github.com/Dimasick-git/libryazhahand-deko.git
 	branch = main
