@@ -7,7 +7,7 @@ defaults:
 on:
   push:
     branches: ['**']
-    tags: ['v*']
+    tags: ['v*', '*-deko3d']
   pull_request:
 
 permissions:
@@ -122,7 +122,7 @@ jobs:
   release:
     name: Publish release
     needs: [build, validate-patches]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -149,8 +149,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: FPSLocker ${{ steps.tag.outputs.tag }}
           generate_release_notes: false
-          body: |
-            Новшества FPSLocker 3.5.0, компактный интерфейс и новая libryazhahand. Для тройной буферизации нужен SaltyNX 2.1.0+.
+          body_path: docs/RELEASE_NOTES_DEKO3D.md
           files: FPSLocker.zip
           fail_on_unmatched_files: true
           draft: false
